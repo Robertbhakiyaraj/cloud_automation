@@ -1,0 +1,41 @@
+#!/bin/sh
+# chkconfig: 345 99 10
+# description: Oracle auto start-stop script.
+#
+# Set ORACLE_HOME to be equivalent to the \$ORACLE_HOME
+# from which you wish to execute dbstart and dbshut;
+#
+# Set ORA_OWNER to the user id of the owner of the
+# Oracle database in ORACLE_HOME.
+
+ORACLE_HOME={{ oracle_home }}; export ORACLE_HOME
+
+OWNER=oracle
+PATH=${PATH}:$ORACLE_HOME/bin
+HOST=`hostname`
+PLATFORM=`uname`
+export ORACLE_HOME PATH
+
+if [ ! -f $ORACLE_HOME/bin/dbstart ]
+then
+echo "Oracle startup: cannot start"
+exit
+fi
+
+case "$1" in
+'start')
+# Start the Oracle databases:
+# The following command assumes that the oracle login
+# will not prompt the user for any values
+su - $OWNER -c "$ORACLE_HOME/bin/lsnrctl start"
+sleep 5
+su - $OWNER -c "$ORACLE_HOME/bin/dbstart $ORACLE_HOME"
+;;
+'stop')
+# Stop the Oracle databases:
+# The following command assumes that the oracle login
+# will not prompt the user for any values
+su - $OWNER -c "$ORACLE_HOME/bin/lsnrctl stop"
+su - $OWNER -c "$ORACLE_HOME/bin/dbshut $ORACLE_HOME"
+;;
+esac

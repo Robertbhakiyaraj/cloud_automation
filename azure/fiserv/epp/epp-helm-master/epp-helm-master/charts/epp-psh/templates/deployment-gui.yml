@@ -1,0 +1,132 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{.Values.name}}-gui
+  namespace: {{.Values.namespace}}
+  labels:
+    app: {{.Values.name}}
+spec:
+  selector:
+    matchLabels:
+      app: {{.Values.name}}
+      tier: {{.Values.name}}-gui
+{{- if ( eq false .Values.gui.deploy ) }}
+  replicas: 0 # disabled because.Values.gui.deploy: {{.Values.gui.deploy}} = false or .Values.initDb.runjob: {{.Values.initDb.runjob}} = true
+{{- end }}
+  progressDeadlineSeconds: 1500 # prevent timeouts in lower environments
+  template:
+    metadata:
+      labels:
+        app: {{.Values.name}}
+        tier: {{.Values.name}}-gui
+      annotations:
+        # https://helm.sh/docs/howto/charts_tips_and_tricks/
+        rollme: {{ randAlphaNum 5 | quote }} # forces rolling restart from Harness pipelines
+    spec:
+      serviceAccountName: bank-sa
+      imagePullSecrets:
+      - name: {{.Values.imagePullSecret}}
+      containers:
+      - name: psh
+{{- if ( eq true .Values.gui.defaultpage ) }}
+        image: docker.artifactory.bank.onefiserv.net/epp/defaultpage:1.0.0-7
+        command:
+        - sh
+        - -c
+        - |
+          cd /u01/oracle/shared/DPSApp/
+          cat <<EOF >> META-INF/application.xml
+          <?xml version="1.0" encoding="UTF-8"?>
+          <application xmlns="http://xmlns.jcp.org/xml/ns/javaee" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/javaee http://xmlns.jcp.org/xml/ns/javaee/application_7.xsd" version="7">
+            <description>common parent pom</description>
+            <display-name>defaultpage-ear</display-name>
+            <module>
+              <web>
+                <web-uri>$(ls com.dovetailsys.defaultpage-defaultpage-*.war)</web-uri>
+                <context-root>${PSH_CONTEXT_ROOT}</context-root>
+              </web>
+            </module>
+          </application>
+          EOF
+{{- else }}
+        image: {{.Values.image}}
+        command:
+        - sh
+        - -c
+        - |
+{{ .Files.Get "scripts/updatewebxml.sh" | indent 10 }}
+
+{{- end }}
+
+          /u01/oracle/container-scripts/createWLSDomain.sh
+        imagePullPolicy: IfNotPresent
+        #Probes
+{{- if ( eq false .Values.gui.defaultpage ) }}
+        livenessProbe:
+          httpGet:
+            path: /JMXWebApp
+            port: 7001
+          #initialDelaySeconds: 300
+          failureThreshold: 40
+          periodSeconds: 15
+        startupProbe:
+          httpGet:
+            path: /JMXWebApp
+            port: 7001
+          initialDelaySeconds: 180
+          failureThreshold: 40
+          periodSeconds: 15
+{{- end }}
+        envFrom:
+        - configMapRef:
+            name: {{.Values.name}}-configmap
+        - secretRef:
+            name: {{.Values.name}}-secret
+        env:
+        - name: MY_POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: MY_POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: MANAGED_SERVER_URL
+          value: t3://$(MY_POD_IP):7001
+        - name: INSTANCE_CATEGORY
+          value: "SINGLETON_GUI"
+        - name: CATEGORY_SHORT_NAME
+          value: "gui"
+        - name: XMS_VALUE
+          value: "1g"
+        - name: XMX_VALUE
+          value: "2g"
+        - name: WL_DB_SESSION_TRACK
+          value: "true"
+        - name: JTA_TIMEOUT_SECONDS
+          value: "900"
+        ports:
+        - containerPort: 7001
+        volumeMounts:
+        - name: gatewaydir
+          mountPath: /opt/epp/gateway
+          subPath: {{.Values.nfsGatewaySubPath}}
+{{- if ( eq false .Values.gui.defaultpage ) }}
+        - name: category
+          mountPath: "/u01/oracle/shared/config/dtconfig-category-guisingleton-services.xml"
+          subPath: dtconfig-category-guisingleton-services.xml
+{{- end }}
+        {{- include "dynamic.mounts" . }}
+
+      volumes:
+      - name: gatewaydir
+        nfs:
+          server: {{.Values.nfsHost}}
+          path: {{.Values.nfsPath}}
+{{- if ( eq false .Values.gui.defaultpage ) }}
+      - name: category
+        configMap:
+          name: {{.Values.name}}-dtconfig-category-guisingleton-servicesxml-cm
+{{- end }}
+      {{- include "dynamic.volumes" . }}
+

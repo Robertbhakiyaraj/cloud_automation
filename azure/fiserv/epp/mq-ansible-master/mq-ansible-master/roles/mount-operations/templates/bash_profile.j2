@@ -1,0 +1,33 @@
+# .bash_profile
+
+# Get the aliases and functions
+if [ -f ~/.bashrc ]; then
+    . ~/.bashrc
+fi
+
+# Oracle Settings
+TMP=/tmp; export TMP
+TMPDIR=$TMP; export TMPDIR
+
+ORACLE_BASE=/u01/app/oracle; export ORACLE_BASE
+GRID_HOME=/u01/app/19.3.0/grid; export GRID_HOME
+DB_HOME=/u01/app/19.3.0/db; export DB_HOME
+ORACLE_HOME=$DB_HOME; export ORACLE_HOME
+#ORACLE_SID=krxprod; export ORACLE_SID
+ORACLE_TERM=xterm; export ORACLE_TERM
+BASE_PATH=/usr/sbin:$PATH; export BASE_PATH
+PATH=$ORACLE_HOME/bin:$BASE_PATH; export PATH
+ALERT_LOG=/u01/app/oracle/diag/rdbms/krxprod/krxprod/trace; export ALERT_LOG
+
+LD_LIBRARY_PATH=$ORACLE_HOME/lib:/lib:/usr/lib; export LD_LIBRARY_PATH
+CLASSPATH=$ORACLE_HOME/JRE:$ORACLE_HOME/jlib:$ORACLE_HOME/rdbms/jlib; export CLASSPATH
+
+{% if ansible_user == 'oracle' %}
+if [ $SHELL = "/bin/ksh" ]; then
+    ulimit -p 16384
+    ulimit -n 65536
+else
+    ulimit -u 16384 -n 65536
+fi
+{% endif %}
+

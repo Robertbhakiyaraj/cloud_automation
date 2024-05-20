@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config>
+    <ejb>
+        <Q5>
+            <DefaultDataSourceName>TDS</DefaultDataSourceName>
+        </Q5>
+        <BALejb>
+            <RequestMessageTranslator>com.dovetailsys.ushs.BAL.BALEFXRequestMessageTranslator</RequestMessageTranslator>
+            <ResponseMessageTranslator>com.dovetailsys.ims.IMSResponseMessageTranslator</ResponseMessageTranslator>
+            <DefaultBalanceType>Avail</DefaultBalanceType>
+        </BALejb>
+        <ManualEntryWebapp>
+            <BalanceCheckComponentRegistered>true</BalanceCheckComponentRegistered>
+        </ManualEntryWebapp>
+        <VirtualAccountLookup>
+            <DedicatedIdsForVirtualAccountProcessing>false</DedicatedIdsForVirtualAccountProcessing>
+        </VirtualAccountLookup>
+    </ejb>
+</config>

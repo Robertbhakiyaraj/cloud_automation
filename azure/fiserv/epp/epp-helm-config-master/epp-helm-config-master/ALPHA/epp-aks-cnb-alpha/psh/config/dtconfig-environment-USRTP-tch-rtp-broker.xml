@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<config>
+    <GatewayProperties>
+        <clearing scope="clearingChannel" scope-value="USRTP">  
+            <ReceivingInstitutionId>990000001T1</ReceivingInstitutionId>
+            <SendingInstitutionId>200000017A1</SendingInstitutionId>
+            <SecurityKeyAlias>disabled</SecurityKeyAlias>
+            <ReceiveOnlyClient>false</ReceiveOnlyClient>
+            <Test>True</Test>  <!-- In production change it to False -->
+        </clearing>
+    </GatewayProperties>
+
+    <dovetailManagement>
+        <managedInstance scope="name" scope-value="USRTP_IPEGateway">
+            <parameters>
+                <parameter>
+                    {
+                    "ClearingChannel=USRTP",
+                    "JmsQcfInstance=1",
+                    "JmsInboundQueueName=dovetail/jms/USRTPInboundInstantPaymentsQueue",
+                    "JmsOutboundQueueName=dovetail/jms/OutboundInstantPaymentsQueue",
+                    "ServiceName=USRTP",
+                    "clearingFactoryGatewayService=com.dovetailsys.clearingfactory.instantpayments.gateway.ClearingFactoryIPEGatewayService",
+                    "Domain=DPP",
+                    "User=Utility_US",
+                    "ReceivingInstitutionId=990000001T1",
+                    "SendingInstitutionId=200000017A1",
+                    "DefaultEntity=US",
+                    "SecurityKeyAlias=disabled",
+                    "usrtp.MultiTenant=Yes"
+                    }
+                </parameter>
+            </parameters>
+        </managedInstance>
+    </dovetailManagement>
+</config>

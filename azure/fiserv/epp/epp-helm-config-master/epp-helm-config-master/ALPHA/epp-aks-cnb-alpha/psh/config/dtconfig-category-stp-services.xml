@@ -1,0 +1,20 @@
+<?xml version = "1.0" encoding = "ISO-8859-1"?>
+<config>
+<dovetailManagement>
+    <managedInstance scope="name" scope-value="Application"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+    <managedInstance scope="name" scope-value="CustomerLimitCheck"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+    <managedInstance scope="name" scope-value="DovetailAgentService"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+    <managedInstance scope="name" scope-value="DynamicLog4J"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+    <managedInstance scope="name" scope-value="DynamicMonitoring"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+    <managedInstance scope="name" scope-value="EnvironmentCheck"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+    <managedInstance scope="name" scope-value="IMSConfigurationManagerService"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+    <managedInstance scope="name" scope-value="STPDispatcher"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+    <managedInstance scope="name" scope-value="STPScheduler"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+    <managedInstance scope="name" scope-value="TDS_ObjectCacheMonitor"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+    <managedInstance scope="name" scope-value="ToacService"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+    <managedInstance scope="name" scope-value="TransactionOperationsService"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+    <managedInstance scope="name" scope-value="TransactionRelease"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+    <managedInstance scope="name" scope-value="NCCUnsatisfiedEventsCheck"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+    <managedInstance scope="name" scope-value="QueueCoordinator"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+  </dovetailManagement>
+</config>

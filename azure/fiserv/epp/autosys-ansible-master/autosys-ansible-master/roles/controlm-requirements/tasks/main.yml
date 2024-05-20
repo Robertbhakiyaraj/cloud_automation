@@ -1,0 +1,41 @@
+---
+# tasks file for users and groups creation
+
+- block:
+  - name: Create group for controlm  if does not exist
+    group:
+      name: "{{ item.name }}"
+      gid: "{{ item.gid }}"
+      state: present
+    loop: 
+      - { name: "controlm", gid: "3027" }
+
+  - name: Create user for ctmagent if does not exist
+    user:
+      name: "{{ item.name }}"
+      uid: "{{ item.uid }}"
+      group: "{{ item.gid }}"
+      groups: "{{ item.groups }}"
+      home: "/app/ctmagent"
+      state: present
+    loop:
+      - { name: "ctmagent", uid: "10066", gid: "3027", groups: ["controlm"] }
+
+  - name: Change ownership of /app/ctmagent to ctmagent:controlm
+    file:
+      path: /app
+      owner: ctmagent
+      group: controlm
+      recurse: yes
+      state: directory
+
+  - name: Add configuration to sudoers.d file 
+    lineinfile:
+      path: /etc/sudoers.d/ctmagent
+      line: "ctmagent ALL = (ALL) NOPASSWD: ALL"
+      state: present
+      mode: "0440"
+      create: yes  
+  become: yes    
+
+

@@ -1,0 +1,64 @@
+# the Harness infrastructure name assigned for this deployment
+# the name must match the source control configuration directory for this deployment
+# in most cases the name matches the namespace unless there are multiple deployments to the same namespace
+name: cnb-mw
+# the Harness namespace setup for this deployment.
+namespace: <+infra.namespace>
+
+image:
+  psh: docker-flume.nexus-dev.onefiserv.net/epp/psh:<+artifact.tag>
+  ipe: docker-flume.nexus-dev.onefiserv.net/epp/ipe:<+artifact.tag>
+
+imageRegistryHostname: <+artifact.registryHostname>
+
+imagePullSecret:
+  - name: nexus-image-pull
+  - name: artifactory-image-pull
+
+
+# obfuscated web application context root needed for AG configurations
+obfuscatedContextRoot: <+infra.name>
+
+# host for nfs volume definition
+nfsHost: nfs2159.irvsx41001.nas.onefiserv.net
+# path for nfs volume definition
+nfsPath: /ifs/irvsx41001/nfs/bs/alpha/be/apps/epp-nsf/
+# sub path to the gateway directory in the nfs share under nfsPath. For infra.name is replaced with tenant id for deployment to upper environments
+nfsGatewaySubPath: gateway/psh/<+infra.name>
+nfsDBSubPath: gateway/psh/<+infra.name>/oradata
+
+q5DataSourceURL: "jdbc:oracle:thin:@10.155.144.68:1521/epp_aks_cnb_alpha"
+q5DataSourceUser: CNB_PSH_ALPHA
+q5DataSourcePassword: secret
+q5DataSourceIpeUser: CNB_IPE_ALPHA
+q5DataSourceIpePassword: secret
+q5DataSourceIpeSharedUser: CNB_IPESHRD_ALPHA
+q5DataSourceIpeSharedPassword: secret
+
+# the US_Solution tenant client profile
+client: cnb
+
+
+app:
+  psh: true
+  ipe: true
+
+mqm:
+  deploy: true
+
+database:
+  deploy: false
+
+customQbol:
+  runjob: false
+
+initDb:
+  runjob: false
+
+initDbIpe:
+  runjob: false
+
+generateSchema:
+  runjob: false
+
+

@@ -1,0 +1,815 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+
+<web-app xmlns="http://xmlns.jcp.org/xml/ns/javaee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/javaee
+            http://xmlns.jcp.org/xml/ns/javaee/web-app_3_1.xsd"
+         version="3.1">
+    <!-- The display-name MUST be here for the PageElementCache to function properly
+         in a multi-WebApp environment. Its value may be set to anything as long as it's
+         a unique name for the Webapp on this particular application server instance. -->
+    <display-name>PSH Web Application</display-name>
+ 
+    <security-constraint>
+        <web-resource-collection>
+            <web-resource-name>restricted methods</web-resource-name>
+            <url-pattern>/*</url-pattern>
+            <http-method>OPTIONS</http-method>
+        </web-resource-collection>
+        <auth-constraint/>
+    </security-constraint>
+
+    <context-param>
+        <param-name>logoutExternal</param-name>
+	<param-value>http://www.fiserv.com</param-value>
+    </context-param>
+	
+    <context-param>
+        <param-name>javax.servlet.jsp.jstl.fmt.localizationContext</param-name>
+        <param-value>ApplicationResource_application</param-value>
+    </context-param>
+
+    <context-param>
+        <param-name>global.PLAF</param-name>
+        <param-value>fiserv2018</param-value>
+    </context-param>
+
+    <context-param>
+        <param-name>dynamicImagesRoot</param-name>
+        <param-value>.</param-value>
+    </context-param>
+
+    <context-param>
+        <param-name>showSystemSummarySegmentTab</param-name>
+        <param-value>false</param-value>
+    </context-param>
+
+    <context-param>
+        <param-name>logoutURL</param-name>
+        <param-value>/PSH/pages/logon.jsp</param-value>
+    </context-param>
+	
+	<!-- Set false value when switching to PingFederate Integration -->
+	<context-param>
+		<param-name>manageRolesInDPP</param-name>
+		<param-value>false</param-value>
+	</context-param>	
+
+	<!-- Start uncomment for WebSphere:
+	<listener>
+        <listener-class>com.dovetailsys.base.management.DovetailApplicationLifecycleListener</listener-class>
+    </listener>
+        End uncomment for WebSphere: -->
+
+    <!-- Define the filters within the Web Application -->
+
+    <!--
+    This filter is commented for PingFederate Integration 
+    <filter>
+        <filter-name>LogonFilter</filter-name>
+        <filter-class>com.dovetailsys.webapp.LogonFilter</filter-class>
+        <init-param>
+            <param-name>logonAction</param-name>
+            <param-value>/Logon.do</param-value>
+        </init-param>
+        <init-param>
+            <param-name>logonPage</param-name>
+            <param-value>/pages/logon.jsp</param-value>
+        </init-param>
+        <init-param>
+            <param-name>accessDeniedPage</param-name>
+            <param-value>/pages/access_denied.jsp</param-value>
+        </init-param>
+    </filter>
+     -->
+
+    <!-- Bypass filter to simulate header authentication for PingFederate Integration -->
+    <filter>
+        <filter-name>HeaderAuthFilterBypass</filter-name>
+        <filter-class>com.dovetailsys.pingfederate.webapp.PingFederateHeaderAuthFilterBypass</filter-class>
+        <init-param>
+            <param-name>usernameHeaderKey</param-name>
+            <param-value>username</param-value>
+        </init-param>
+        <init-param>
+            <param-name>fullNameHeaderKey</param-name>
+            <param-value>fullname</param-value>
+        </init-param>
+        <init-param>
+            <param-name>homeDepartmentHeaderKey</param-name>
+            <param-value>homedepartment</param-value>
+        </init-param>
+        <init-param>
+            <param-name>homeDepartmentDefaultValue</param-name>
+            <param-value>DPP.US</param-value>
+        </init-param>
+        <init-param>
+            <param-name>roleListHeaderKey</param-name>
+            <param-value>rolelist</param-value>
+        </init-param>
+        <init-param>
+            <param-name>branchListHeaderKey</param-name>
+            <param-value>branchlist</param-value>
+        </init-param>
+        <init-param>
+            <param-name>emailAddressHeaderKey</param-name>
+            <param-value>email</param-value>
+        </init-param>
+        <init-param>
+            <param-name>emailAddressDefaultValue</param-name>
+            <param-value>epp@fiserv.com</param-value>
+        </init-param>
+        <!-- Utility user configured to look up roles and details for the user passed in -->
+        <init-param>
+            <param-name>contextDomain</param-name>
+            <param-value>DPP</param-value>
+        </init-param>
+        <init-param>
+            <param-name>contextUsername</param-name>
+            <param-value>Utility</param-value>
+        </init-param>
+    </filter>
+
+    <!-- Header Authentication Filter for PingFederate Integration -->
+    <filter>
+        <filter-name>HeaderAuthFilter</filter-name>
+        <filter-class>com.dovetailsys.pingfederate.webapp.PingFederateHeaderAuthFilter</filter-class>
+        <init-param>
+            <param-name>usernameHeaderKey</param-name>
+            <param-value>username</param-value>
+        </init-param>
+        <init-param>
+            <param-name>fullNameHeaderKey</param-name>
+            <param-value>fullname</param-value>
+        </init-param>
+        <init-param>
+            <param-name>homeDepartmentHeaderKey</param-name>
+            <param-value>homedepartment</param-value>
+        </init-param>
+        <init-param>
+            <param-name>homeDepartmentDefaultValue</param-name>
+            <param-value>DPP.US</param-value>
+        </init-param>
+        <init-param>
+            <param-name>roleListHeaderKey</param-name>
+            <param-value>rolelist</param-value>
+        </init-param>
+        <init-param>
+            <param-name>branchListHeaderKey</param-name>
+            <param-value>branchlist</param-value>
+        </init-param>
+        <init-param>
+            <param-name>emailAddressHeaderKey</param-name>
+            <param-value>email</param-value>
+        </init-param>
+        <init-param>
+            <param-name>emailAddressDefaultValue</param-name>
+            <param-value>epp@fiserv.com</param-value>
+        </init-param>
+        <init-param>
+            <param-name>domainName</param-name>
+            <param-value>DPP</param-value>
+        </init-param>
+        <init-param>
+            <param-name>defaultURLs</param-name>
+            <param-value>/Logon.do,/PSH.do</param-value>
+        </init-param>
+        <init-param>
+            <param-name>testMode</param-name>
+            <param-value>true</param-value> <!-- This should be false for a live environment -->
+        </init-param>
+        <init-param>
+            <param-name>accessDeniedPage</param-name>
+            <param-value>/pages/external_redirect.jsp</param-value>
+        </init-param>
+    </filter>
+
+    <filter>
+        <filter-name>CSPFilter</filter-name>
+        <filter-class>com.dovetailsys.webapp.CSPFilter</filter-class>
+        <init-param>
+            <param-name>NonceByteLength</param-name>
+            <param-value>12</param-value>
+        </init-param>
+        <init-param>
+            <param-name>SkipCSPUrls</param-name>
+            <param-value>GenerateDocument.do?forward=generateDisclosure,GenerateDocument.do?forward=generateReceipt,TransactionInquiry.do?forward=editToExcel</param-value>
+        </init-param>
+    </filter>
+
+    <!-- EP remove this filter to run in Liberty PCF -->
+    <filter>
+        <filter-name>RequestHeaderFilter</filter-name>
+        <filter-class>com.dovetailsys.webapp.RequestHeaderFilter</filter-class>
+        <init-param>
+            <param-name>errorPage</param-name>
+            <param-value>/pages/error.jsp</param-value>
+        </init-param>
+        <init-param>
+            <param-name>domains</param-name>
+            <!-- make sure to add all the valid domains e.g. localhost, 127.0.0.1 -->
+            <!-- by default keeping its empty for dev and QAT purpose -->
+            <param-value></param-value>
+        </init-param>
+    </filter>
+
+    <filter>
+        <filter-name>IpHoppingPreventionFilter</filter-name>
+        <filter-class>com.dovetailsys.webapp.IpHoppingPreventionFilter</filter-class>
+        <init-param>
+            <param-name>checkClientIp</param-name>
+            <param-value>Yes</param-value>
+        </init-param>
+        <init-param>
+            <param-name>checkHeaders</param-name>
+            <param-value>Host,User-Agent,Accept-Charset</param-value>
+        </init-param>
+        <init-param>
+            <param-name>accessDeniedPage</param-name>
+            <param-value>/ExternalRedirectLogOff.do?urlKey=logoutExternal</param-value>
+        </init-param>
+    </filter>
+
+    <filter>
+        <filter-name>GuiTimeoutFilter</filter-name>
+        <filter-class>com.dovetailsys.webapp.GuiTimeoutFilter</filter-class>
+        <init-param>
+            <param-name>logonPage</param-name>
+            <param-value>/pages/logon.jsp</param-value>
+        </init-param>
+        <init-param>
+           <param-name>sessionTimeoutPage</param-name>
+           <param-value>/ExternalRedirectLogOff.do?urlKey=logoutExternal</param-value>
+       </init-param>
+    </filter>
+
+       <filter>
+            <filter-name>UrlHashFilter</filter-name>
+            <filter-class>com.dovetailsys.webapp.UrlHashFilter</filter-class>
+            <init-param>
+                <param-name>accessDeniedPage</param-name>
+                <param-value>/tiles/error_message.jsp?resource=errors.accessDenied</param-value>
+            </init-param>
+			<init-param>
+                <param-name>initialPage</param-name>
+                <param-value>/PSH.do</param-value>
+            </init-param>
+        </filter>
+
+    <filter>
+        <filter-name>GuiStatusFilter</filter-name>
+        <filter-class>com.dovetailsys.payments.webapp.GuiStatusFilter</filter-class>
+        <init-param>
+            <param-name>logonPage</param-name>
+            <param-value>/pages/logon.jsp</param-value>
+        </init-param>
+        <init-param>
+            <param-name>accessDeniedPage</param-name>
+            <param-value>/ExternalRedirectLogOff.do?urlKey=logoutExternal</param-value>
+        </init-param>
+    </filter>
+
+    <filter>
+        <filter-name>NavigationFilter</filter-name>
+        <filter-class>com.dovetailsys.webapp.NavigationFilter</filter-class>
+    </filter>
+
+    <filter>
+        <filter-name>ErrorFilter</filter-name>
+        <filter-class>com.dovetailsys.webapp.ErrorFilter</filter-class>
+    </filter>
+
+    <filter>
+        <filter-name>AutoRefreshFilter</filter-name>
+        <filter-class>com.dovetailsys.webapp.AutoRefreshFilter</filter-class>
+    </filter>
+
+    <filter>
+        <filter-name>ExportFilter</filter-name>
+        <filter-class>com.dovetailsys.webapp.ExportFilter</filter-class>
+    </filter>
+
+    <filter>
+        <filter-name>UnholdFilter</filter-name>
+        <filter-class>com.dovetailsys.webapp.UnholdFilter</filter-class>
+    </filter>
+
+    <filter>
+        <filter-name>HistoricalDataFilter</filter-name>
+        <filter-class>com.dovetailsys.payments.webapp.HistoricalDataFilter</filter-class>
+    </filter>
+
+    <!-- When using ResponseHeaderFilter, ClickjackFilter is not needed since the X-Frame-Options header can be set here -->
+    <!-- Some useful security-related HTTP headers: https://www.owasp.org/index.php/List_of_useful_HTTP_headers -->
+    <filter>
+        <filter-name>ResponseHeaderFilter</filter-name>
+        <filter-class>com.dovetailsys.webapp.ResponseHeaderFilter</filter-class>
+        <!-- Content-Security-Policy is the Official W3C CSP directive -->
+        <!-- X-Content-Security-Policy is the sandbox directive used by IE. However, IE's support for CSP is quite limited. -->
+        <!-- Content-Security-Policy is the Official W3C CSP directive -->
+        <!-- This can be enabled and tweaked as needed for clients. -->
+        <init-param>
+            <param-name>Content-Security-Policy</param-name>
+            <param-value>default-src 'none'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; connect-src 'self'; img-src 'self'; style-src 'self' 'unsafe-inline'; frame-src 'self'; frame-ancestors 'self'; font-src 'self'; form-action 'self' javascript:</param-value>
+        </init-param>
+        <init-param>
+            <param-name>X-XSS-Protection</param-name>
+            <param-value>1; mode=block</param-value>
+        </init-param>
+        <init-param>
+            <param-name>X-Frame-Options</param-name>
+            <param-value>SAMEORIGIN</param-value> <!-- Note: This replaces the Clickjack Filter -->
+        </init-param>
+        <init-param>
+            <param-name>Cache-Control</param-name>
+            <param-value>no-store, no-cache, must-revalidate</param-value>
+        </init-param>
+        <init-param>
+            <param-name>Pragma</param-name>
+            <param-value>no-cache</param-value>
+        </init-param>
+        <init-param>
+            <param-name>Expires</param-name>
+            <param-value>0</param-value>
+        </init-param>
+        <init-param>
+            <param-name>Strict-Transport-Security</param-name>
+            <param-value>max-age=31536000; includeSubDomains; preload</param-value>
+        </init-param>
+        <init-param>
+            <param-name>X-Content-Type-Options</param-name>
+            <param-value>nosniff</param-value>
+        </init-param>
+        <init-param>
+            <param-name>X-Robots-Tag</param-name>
+            <param-value>none</param-value>
+        </init-param>
+    </filter>
+
+    <filter>
+        <filter-name>ResponseHeaderFilterJS</filter-name>
+        <filter-class>com.dovetailsys.webapp.ResponseHeaderFilter</filter-class>
+        <init-param>
+            <param-name>Content-Security-Policy</param-name>
+            <param-value>default-src 'none'; script-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self'; style-src 'self' 'unsafe-inline'; frame-src 'self'; frame-ancestors 'self'; font-src 'self'</param-value>
+        </init-param>
+        <init-param>
+            <param-name>X-XSS-Protection</param-name>
+            <param-value>1; mode=block</param-value>
+        </init-param>
+        <init-param>
+            <param-name>X-Frame-Options</param-name>
+            <param-value>SAMEORIGIN</param-value> <!-- Note: This replaces the Clickjack Filter -->
+        </init-param>
+        <init-param>
+            <param-name>Cache-Control</param-name>
+            <param-value>no-cache, must-revalidate, public, max-age=43200</param-value>
+        </init-param>
+        <init-param>
+            <param-name>Pragma</param-name>
+            <param-value>no-cache</param-value>
+        </init-param>
+        <init-param>
+            <param-name>Expires</param-name>
+            <param-value>0</param-value>
+        </init-param>
+        <init-param>
+            <param-name>Strict-Transport-Security</param-name>
+            <param-value>max-age=31536000; includeSubDomains; preload</param-value>
+        </init-param>
+        <init-param>
+            <param-name>X-Content-Type-Options</param-name>
+            <param-value>nosniff</param-value>
+        </init-param>
+        <init-param>
+            <param-name>X-Robots-Tag</param-name>
+            <param-value>none</param-value>
+        </init-param>
+    </filter>
+
+    <filter>
+        <filter-name>SetContentTypeFilter</filter-name>
+        <filter-class>com.dovetailsys.webapp.SetContentTypeFilter</filter-class>
+        <init-param>
+            <param-name>ContentType</param-name>
+            <param-value>text/html; charset=UTF-8</param-value>
+        </init-param>
+    </filter>
+
+    <filter>
+        <filter-name>TenantIdValidationFilter</filter-name>
+        <filter-class>com.dovetailsys.webapp.TenantIdValidationFilter</filter-class>
+        <init-param>
+            <param-name>accessDeniedPage</param-name>
+            <param-value>/ExternalRedirectLogOff.do?urlKey=logoutExternal</param-value>
+        </init-param>
+    </filter>
+
+    <!-- This filter must come first in the chain so that the default set here can be overridden by the export, auto refresh, and possibly other filters. -->
+    <filter-mapping>
+        <filter-name>SetContentTypeFilter</filter-name>
+        <url-pattern>*.do</url-pattern>
+        <!-- Commented 2nd url-pattern as it is incompatible with WebSphere. -->
+        <!-- <url-pattern>*.jsp</url-pattern> -->
+    </filter-mapping>
+
+    <filter-mapping>
+        <filter-name>SetContentTypeFilter</filter-name>
+        <url-pattern>/JMXUtilHandler/*</url-pattern>
+    </filter-mapping>
+
+    <filter-mapping>
+        <filter-name>AutoRefreshFilter</filter-name>
+        <url-pattern>*.do</url-pattern>
+    </filter-mapping>
+
+    <filter-mapping>
+        <filter-name>ExportFilter</filter-name>
+        <url-pattern>*.do</url-pattern>
+    </filter-mapping>
+
+    <!--
+    Commented for PingFederate Integration
+     <filter-mapping>
+        <filter-name>LogonFilter</filter-name>
+        <url-pattern>*.do</url-pattern>
+    </filter-mapping> -->
+
+    <filter-mapping>
+        <filter-name>RequestHeaderFilter</filter-name>
+        <url-pattern>/*</url-pattern>
+    </filter-mapping>
+
+    <filter-mapping>
+        <filter-name>ResponseHeaderFilter</filter-name>
+        <url-pattern>*.do</url-pattern>
+    </filter-mapping>
+
+    <filter-mapping>
+        <filter-name>ResponseHeaderFilter</filter-name>
+        <url-pattern>/JMXUtilHandler/*</url-pattern>
+    </filter-mapping>
+
+    <filter-mapping>
+        <filter-name>ResponseHeaderFilter</filter-name>
+        <url-pattern>*.css</url-pattern>
+    </filter-mapping>
+
+    <filter-mapping>
+        <filter-name>ResponseHeaderFilterJS</filter-name>
+        <url-pattern>*.js</url-pattern>
+    </filter-mapping>
+
+    <filter-mapping>
+        <filter-name>ResponseHeaderFilter</filter-name>
+        <url-pattern>*.jsp</url-pattern>
+    </filter-mapping>
+
+    <filter-mapping>
+        <filter-name>CSPFilter</filter-name>
+        <url-pattern>*.do</url-pattern>
+    </filter-mapping>
+
+    <filter-mapping>
+        <filter-name>CSPFilter</filter-name>
+        <url-pattern>pages/logon.jsp</url-pattern>
+    </filter-mapping>
+
+    <filter-mapping>
+        <filter-name>CSPFilter</filter-name>
+        <url-pattern>pages/external_redirect.jsp</url-pattern>
+    </filter-mapping>
+
+    <filter-mapping>
+        <filter-name>HeaderAuthFilterBypass</filter-name>
+        <url-pattern>*.do</url-pattern>
+    </filter-mapping>
+
+    <filter-mapping>
+        <filter-name>HeaderAuthFilterBypass</filter-name>
+        <url-pattern>/JMXUtilHandler/*</url-pattern>
+    </filter-mapping>
+
+    <filter-mapping>
+        <filter-name>HeaderAuthFilter</filter-name>
+        <url-pattern>*.do</url-pattern>
+    </filter-mapping>
+
+    <filter-mapping>
+        <filter-name>HeaderAuthFilter</filter-name>
+        <url-pattern>/JMXUtilHandler/*</url-pattern>
+    </filter-mapping>
+
+    <filter-mapping>
+        <filter-name>IpHoppingPreventionFilter</filter-name>
+        <url-pattern>*.do</url-pattern>
+    </filter-mapping>
+
+    <filter-mapping>
+        <filter-name>IpHoppingPreventionFilter</filter-name>
+        <url-pattern>/JMXUtilHandler/*</url-pattern>
+    </filter-mapping>
+
+    <!-- Don't want this in a demo system -->
+    <filter-mapping>
+        <filter-name>GuiTimeoutFilter</filter-name>
+        <url-pattern>*.do</url-pattern>
+    </filter-mapping>
+
+    <filter-mapping>
+        <filter-name>GuiTimeoutFilter</filter-name>
+        <url-pattern>/JMXUtilHandler/*</url-pattern>
+    </filter-mapping>
+    
+    <filter-mapping>
+        <filter-name>GuiTimeoutFilter</filter-name>
+        <url-pattern>/dwr/*</url-pattern>
+    </filter-mapping>
+
+       <filter-mapping>
+            <filter-name>UrlHashFilter</filter-name>
+            <url-pattern>*.do</url-pattern>
+        </filter-mapping>
+
+    <filter-mapping>
+        <filter-name>UrlHashFilter</filter-name>
+        <url-pattern>/JMXUtilHandler/*</url-pattern>
+    </filter-mapping>
+
+    <filter-mapping>
+        <filter-name>GuiStatusFilter</filter-name>
+        <url-pattern>*.do</url-pattern>
+    </filter-mapping>
+
+    <filter-mapping>
+        <filter-name>GuiStatusFilter</filter-name>
+        <url-pattern>/JMXUtilHandler/*</url-pattern>
+    </filter-mapping>
+
+    <!-- Map the filter to a Servlet or URL -->
+    <filter-mapping>
+        <filter-name>NavigationFilter</filter-name>
+        <url-pattern>*.do</url-pattern>
+    </filter-mapping>
+
+    <filter-mapping>
+        <filter-name>ErrorFilter</filter-name>
+        <url-pattern>*.do</url-pattern>
+    </filter-mapping>
+
+    <filter-mapping>
+        <filter-name>UnholdFilter</filter-name>
+        <url-pattern>*.do</url-pattern>
+    </filter-mapping>
+
+    <filter-mapping>
+        <filter-name>HistoricalDataFilter</filter-name>
+        <url-pattern>*.do</url-pattern>
+    </filter-mapping>
+
+    <filter-mapping>
+        <filter-name>TenantIdValidationFilter</filter-name>
+        <url-pattern>*.do</url-pattern>
+    </filter-mapping>
+
+    <filter-mapping>
+        <filter-name>TenantIdValidationFilter</filter-name>
+        <url-pattern>/JMXUtilHandler/*</url-pattern>
+    </filter-mapping>
+
+    <jsp-config>
+        <jsp-property-group>
+            <url-pattern>*.jsp</url-pattern>
+            <page-encoding>UTF-8</page-encoding>
+            <trim-directive-whitespaces>true</trim-directive-whitespaces>
+        </jsp-property-group>
+    </jsp-config>
+
+    <servlet>
+        <servlet-name>action</servlet-name>
+        <servlet-class>com.dovetailsys.webapp.DovetailActionServlet</servlet-class>
+        <init-param>
+            <param-name>application</param-name>
+            <param-value>ApplicationResource_application</param-value>
+        </init-param>
+        <init-param>
+            <param-name>config</param-name>
+            <param-value>/WEB-INF/struts-config-plugins.xml</param-value>
+        </init-param>
+        <init-param>
+            <param-name>debug</param-name>
+            <param-value>1</param-value>
+        </init-param>
+        <load-on-startup>1</load-on-startup>
+    </servlet>
+
+     <!--Use for jndi binding to MQ server, uncomment only if use MQ objects in the BankToCustomerDebitCreditNotifStage-->
+    <!--<servlet>-->
+        <!--<servlet-name>StartupConfigurator</servlet-name>-->
+        <!--<servlet-class>com.dovetailsys.base.management.webapp.StartupConfiguratorServlet</servlet-class>-->
+        <!--<init-param>-->
+            <!--<param-name>config</param-name>-->
+            <!--<param-value>/development/Envoy/builds/archives/EnvoyApp/APP-INF/classes/JNDIStartup.xml</param-value>-->
+        <!--</init-param>-->
+        <!--<load-on-startup>2</load-on-startup>-->
+    <!--</servlet>-->
+
+    <servlet>
+        <servlet-name>dynimage</servlet-name>
+        <servlet-class>com.dovetailsys.webapp.ViewImageServlet</servlet-class>
+    </servlet>
+
+
+    <servlet>
+        <servlet-name>charts</servlet-name>
+        <servlet-class>com.dovetailsys.imageapp.webapp.JFreeChartServlet</servlet-class>
+    </servlet>
+
+    <servlet>
+        <servlet-name>dwr-invoker</servlet-name>
+        <servlet-class>org.directwebremoting.servlet.DwrServlet</servlet-class>
+        <init-param>
+			<param-name>config-webapp</param-name>
+            <param-value>/WEB-INF/dwr-webapp.xml</param-value>
+        </init-param>
+        <init-param>
+            <param-name>config-manualentry</param-name>
+            <param-value>/WEB-INF/dwr-manualentry.xml</param-value>
+        </init-param>
+        <init-param>
+            <param-name>config-usrtp</param-name>
+            <param-value>/WEB-INF/dwr-usrtp.xml</param-value>
+        </init-param>        
+        <init-param>
+            <param-name>config-pa</param-name>
+            <param-value>/WEB-INF/dwr-pa.xml</param-value>
+        </init-param>
+        <init-param>
+            <param-name>config-filter</param-name>
+            <param-value>/WEB-INF/dwr-filter.xml</param-value>
+        </init-param>
+<!--         <init-param>
+            <param-name>config-nostroFlowControl</param-name>
+            <param-value>/WEB-INF/dwr-nostroFlowControl.xml</param-value>
+        </init-param> -->
+        <init-param>
+            <param-name>config-mmt</param-name>
+            <param-value>/WEB-INF/dwr-mmt.xml</param-value>
+        </init-param>
+        <init-param>
+            <param-name>config-qr</param-name>
+            <param-value>/WEB-INF/dwr-qr.xml</param-value>
+        </init-param>
+        <init-param>
+            <param-name>debug</param-name>
+            <param-value>false</param-value>
+        </init-param>
+    </servlet>
+
+    <servlet>
+        <servlet-name>JMXUtilHandler</servlet-name>
+        <servlet-class>com.dovetailsys.webapp.management.JMXUtilHandler</servlet-class>
+    </servlet>
+
+    <servlet>
+        <servlet-name>attachment</servlet-name>
+        <servlet-class>com.dovetailsys.payments.webapp.AttachmentHandlerServlet</servlet-class>
+    </servlet>
+    <!-- Action Servlet Mapping -->
+    <servlet-mapping>
+        <servlet-name>action</servlet-name>
+        <url-pattern>*.do</url-pattern>
+    </servlet-mapping>
+
+    <servlet-mapping>
+        <servlet-name>dynimage</servlet-name>
+        <url-pattern>/dynimage/*</url-pattern>
+    </servlet-mapping>
+
+    <servlet-mapping>
+        <servlet-name>charts</servlet-name>
+        <url-pattern>*.chart</url-pattern>
+    </servlet-mapping>
+
+    <servlet-mapping>
+        <servlet-name>dwr-invoker</servlet-name>
+        <url-pattern>/dwr/*</url-pattern>
+    </servlet-mapping>
+
+    <servlet-mapping>
+        <servlet-name>attachment</servlet-name>
+        <url-pattern>/attachment/*</url-pattern>
+    </servlet-mapping>
+
+    <servlet-mapping>
+        <servlet-name>JMXUtilHandler</servlet-name>
+        <url-pattern>/JMXUtilHandler</url-pattern>
+    </servlet-mapping>
+
+    <session-config>
+        <session-timeout>15</session-timeout>
+    </session-config>
+
+    <!-- The Welcome File List -->
+    <welcome-file-list>
+        <welcome-file>pages/logon.jsp</welcome-file>
+    </welcome-file-list>
+
+    <error-page>
+        <location>/pages/error.jsp</location>
+    </error-page>
+
+    <error-page>
+        <exception-type>javax.servlet.ServletException</exception-type>
+        <location>/pages/error.jsp</location>
+    </error-page>
+
+    <error-page>
+        <exception-type>java.lang.RuntimeException</exception-type>
+        <location>/pages/error.jsp</location>
+    </error-page>
+
+    <security-constraint>
+        <web-resource-collection>
+            <web-resource-name>PSH POST requests</web-resource-name>
+            <url-pattern>*/PSH/*</url-pattern>
+            <http-method>POST</http-method>
+        </web-resource-collection>
+        <!-- <auth-constraint>
+            no constraints
+        </auth-constraint> -->
+    </security-constraint>
+
+    <!-- Security constraint to prevent submitting post data from JSP. -->
+    <security-constraint>
+        <web-resource-collection>
+            <web-resource-name>Don't allow POST to JSPs</web-resource-name>
+            <url-pattern>*.jsp</url-pattern>
+            <http-method>POST</http-method>
+        </web-resource-collection>
+        <auth-constraint>
+            <!-- no one! -->
+        </auth-constraint>
+    </security-constraint>
+
+	<!-- removed to allow the PingFederateHeaderAuthFilterBypass to simulate PingFederate SSO integration
+    <security-constraint>
+       <web-resource-collection>
+            <web-resource-name>PSH Logon GET requests</web-resource-name>
+            <url-pattern>*/Logon.do</url-pattern>
+            <http-method>GET</http-method>
+        </web-resource-collection>
+        <auth-constraint>
+        </auth-constraint>
+    </security-constraint>
+	-->
+	
+	<mime-mapping>
+		<extension>pdf</extension>
+		<mime-type>application/pdf</mime-type>
+	</mime-mapping>
+	<mime-mapping>
+		<extension>txt</extension>
+		<mime-type>text/plain</mime-type>
+	</mime-mapping>
+	<mime-mapping>
+		<extension>png</extension>
+		<mime-type>image/png</mime-type>
+	</mime-mapping>
+	<mime-mapping>
+		<extension>gif</extension>
+		<mime-type>image/gif</mime-type>
+	</mime-mapping>
+	<mime-mapping>
+		<extension>jpg</extension>
+		<mime-type>image/jpeg</mime-type>
+	</mime-mapping>
+	<mime-mapping>
+		<extension>wav</extension>
+		<mime-type>audio/wav</mime-type>
+	</mime-mapping>
+	<mime-mapping>
+		<extension>mp3</extension>
+		<mime-type>audio/mpeg</mime-type>
+	</mime-mapping>
+	<mime-mapping>
+		<extension>msg</extension>
+		<mime-type>application/vnd.ms-outlook</mime-type>
+	</mime-mapping>
+	<mime-mapping>
+		<extension>csv</extension>
+		<mime-type>text/csv</mime-type>
+	</mime-mapping>
+	<mime-mapping>
+		<extension>xls</extension>
+		<mime-type>application/vnd.ms-excel</mime-type>
+	</mime-mapping>
+	<mime-mapping>
+		<extension>xlsx</extension>
+		<mime-type>application/vnd.openxmlformats-officedocument.spreadsheetml.sheet</mime-type>
+	</mime-mapping>
+	<mime-mapping>
+		<extension>docx</extension>
+		<mime-type>application/vnd.openxmlformats-officedocument.wordprocessingml.document</mime-type>
+	</mime-mapping>
+</web-app>

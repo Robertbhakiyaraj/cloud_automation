@@ -1,0 +1,21 @@
+<?xml version = "1.0" encoding = "ISO-8859-1"?>
+<config>
+<dovetailManagement>
+  <managedInstance scope="name" scope-value="DDAExternalLookupSimulator"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+  <managedInstance scope="name" scope-value="GFC_Sync_Simulator"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+  <managedInstance scope="name" scope-value="Instant_PSHGateway"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+  <managedInstance scope="name" scope-value="OFC_Sync_Simulator"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+  <managedInstance scope="name" scope-value="QueueCoordinator"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+  <managedInstance scope="name" scope-value="RFA_Sync_Simulator"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+  <managedInstance scope="name" scope-value="STPDispatcher"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+  <managedInstance scope="name" scope-value="STPScheduler"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+  <managedInstance scope="name" scope-value="TransactionRelease"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+  <managedInstance scope="name" scope-value="USRTPGateway"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+  <managedInstance scope="name" scope-value="USRTPInboundQFileJMSBridgeGateway"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+  <managedInstance scope="name" scope-value="USRTPInboundSNMQFileJMSBridgeGateway"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+  <managedInstance scope="name" scope-value="USRTPOutboundReplyQFileJMSBridgeGateway"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+  <managedInstance scope="name" scope-value="USRTP_Simulator_Site1"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+  <managedInstance scope="name" scope-value="USRTP_Simulator_Site2"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+
+</dovetailManagement>
+</config>

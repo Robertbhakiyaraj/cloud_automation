@@ -1,0 +1,14 @@
+# Run the following command to generate local helm manifest yaml files that match the Harness pipeline:
+# helm template ./ -f values-local.yaml
+name         : epp-aks-cnb-alpha
+namespace    : epp-aks-cnb-alpha
+
+# update image tag as needed
+image: docker.artifactory.bank.onefiserv.net/epp/psh:US_Solution_11.2-1-28
+imagetag: US_Solution_11.2-1-28
+
+obfuscatedContextRoot: epp-aks-cnb-alpha
+
+nfsGatewaySubPath: gateway/psh/epp-aks-cnb-alpha
+
+

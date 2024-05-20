@@ -1,0 +1,60 @@
+---
+
+# tasks file for logical volume creation , directory creation, file system format and file mount
+- name: Check if marker for successful file system mount for autosys server
+  shell: "grep -i 'successful file system mount for autosys' /tmp/fs_status.txt"
+  register: autosys_filesystem_mount_check
+  become: yes
+  ignore_errors: yes
+
+- block:
+    - name: Check if logical volumes exist
+      shell: "lvs --noheadings | awk '{ print $1 }' | grep '{{item.lv}}'"
+      loop: "{{ autosys_specs }}"
+      register: lv_check
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Create logical volumes
+      lvol:
+        vg: "vg_extra"
+        lv: "{{ item.lv }}"
+        size: "{{ item.size }}"
+      loop: "{{ autosys_specs }}"
+      when: lv_check is failed
+    
+    - name: Format logical volumes
+      filesystem:
+        fstype: xfs
+        dev: "/dev/vg_extra/{{item.lv}}"
+      loop: "{{ autosys_specs }}"
+
+    - name: Check if directories exist
+      stat:
+        path: "{{ item.path }}"
+      register: existing_dirs
+      loop: "{{ autosys_specs }}"
+
+    - name: Create directories if not present
+      file:
+        path: "{{ item.path }}"
+        state: directory
+        mode: "{{ item.mode }}"
+      loop: "{{ autosys_specs }}"
+
+    - name: Mount the directories if not mounted
+      mount:
+        path: "{{ item.path }}"
+        src: "/dev/mapper/vg_extra-{{ item.lv}}"
+        fstype: xfs
+        state: mounted
+      loop: "{{ autosys_specs }}"
+    
+    - name: Add marker to indicate successful file system mount for autosys server
+      lineinfile:
+        path: /tmp/fs_status.txt
+        line: "successful file system mount for autosys"
+        create: yes
+
+  become: yes
+  when: autosys_filesystem_mount_check is changed and autosys_filesystem_mount_check.rc != 0

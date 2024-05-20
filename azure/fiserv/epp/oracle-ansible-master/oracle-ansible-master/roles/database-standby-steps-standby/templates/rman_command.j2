@@ -1,0 +1,18 @@
+run
+{
+  allocate channel c1 type disk;
+  allocate channel c2 type disk;
+  allocate channel c3 type disk;
+  allocate channel c4 type disk;
+  allocate auxiliary channel stby1 type disk;
+  allocate auxiliary channel stby2 type disk;
+  allocate auxiliary channel stby3 type disk;
+  allocate auxiliary channel stby4 type disk;
+  allocate auxiliary channel stby5 type disk;
+  allocate auxiliary channel stby6 type disk;
+  allocate auxiliary channel stby7 type disk;
+  allocate auxiliary channel stby8 type disk;
+  allocate auxiliary channel stby9 type disk;
+  allocate auxiliary channel stby10 type disk;
+  DUPLICATE TARGET DATABASE FOR STANDBY FROM ACTIVE DATABASE NOFILENAMECHECK;
+}

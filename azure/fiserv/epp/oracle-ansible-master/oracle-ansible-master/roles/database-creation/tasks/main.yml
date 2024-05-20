@@ -1,0 +1,59 @@
+---
+# tasks file for database-creation
+- name: Check if marker for successful dbcreation exists in file
+  shell: "grep -i 'successful dbcreation execution' /tmp/oracle_status.txt"
+  register: dbcreation_status
+  become: yes
+  ignore_errors: yes
+
+- block:
+
+  - name: Source .bash_profile
+    shell: "source ~/.bash_profile && echo 'Success: .bash_profile sourced'"
+    register: bash_profile_result
+    changed_when: false
+    become_user: oracle 
+
+  - name: Run dbca command to create Oracle database
+    shell: |
+      /opt/oracle/product/19.3.0/db/bin/dbca -silent -createDatabase \
+      -gdbName PRCDB \
+      -sid PRCDB \
+      -responseFile NO_VALUE \
+      -databaseConfigType SI \
+      -dbOptions JSERVER:true,ORACLE_TEXT:false,IMEDIA:false,CWMLITE:false,SPATIAL:false,OMS:false,APEX:false,DV:false \
+      -createAsContainerDatabase true \
+      -numberOfPDBs 1 \
+      -pdbName PRPDB \
+      -pdbAdminPassword E4CQmk3ps65N8xBc \
+      -databaseType MULTIPURPOSE \
+      -templateName New_Database.dbt \
+      -sysPassword gyoFm8AYHsvZm48A \
+      -systemPassword gyoFm8AYHsvZm48A \
+      -storageType FS \
+      -datafileDestination /u01 \
+      -recoveryAreaDestination /redo \
+      -redoLogFileSize 50 \
+      -useOMF true \
+      -totalMemory 4096 \
+      -characterSet AL32UTF8 \
+      -sampleSchema false \
+      -enableArchive true \
+      -initParams sga_target=1536MB,pga_aggregate_target=512MB,nls_language=ENGLISH,nls_territory='AMERICA',processes=300,open_cursors=300 \
+      -automaticMemoryManagement false
+    become_user: oracle
+    register: dbca_results
+
+  - name: Print dbca results
+    debug:
+       var: dbca_results  
+
+  - name: Add marker to indicate successful of dbcreation execution 
+    lineinfile:
+       path: /tmp/oracle_status.txt
+       line: "successful dbcreation execution"
+       create: yes
+    when: dbca_results is changed and dbca_results.rc == 0   
+    
+  become: yes
+  when: dbcreation_status is changed and dbcreation_status.rc != 0

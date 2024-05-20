@@ -1,0 +1,84 @@
+---
+# tasks file for pre-req-db
+- name: Check if marker for successful db packages exists in file
+  shell: "grep -i 'successful packages execution for db' /tmp/oracle_status.txt"
+  register: db_packages_check
+  become: yes
+  ignore_errors: yes
+
+- block:
+  - name: Ensure software directory exists
+    stat:
+      path: /opt/oracle/software
+    register: software_dir
+
+  - name: Copy file using rsync
+    synchronize:
+        src: "{{ source_oracle_software_location }}"
+        dest: /opt/oracle/software
+    when: software_dir.stat.exists
+
+  - name: Change the permission for /opt/oracle/software
+    shell: "chown -R oracle:oinstall /opt/oracle/"    
+
+  - name: Check if oracle-database-preinstall-19c is installed
+    command: rpm -q i oracle-database-preinstall
+    register: oracle_database_preinstall_installed
+    changed_when: false
+    failed_when: false
+
+  - name: Install oracle-database-preinstall-19c
+    yum:
+      name: /opt/oracle/software/oracle-database-preinstall-19c-1.0-2.el8.x86_64.rpm
+      state: present
+    when: oracle_database_preinstall_installed.rc != 0
+
+  - name: Install required packages
+    yum:
+      name: "{{ item }}"
+      state: present
+    loop:
+      - bc
+      - binutils
+      - elfutils-libelf
+      - glibc
+      - glibc-devel
+      - ksh
+      - libaio
+      - libaio-devel
+      - libXrender
+      - libXrender-devel
+      - libX11
+      - libXau
+      - libXi
+      - libXtst
+      - libgcc
+      - librdmacm-devel
+      - libstdc++
+      - libstdc++-devel
+      - libxcb
+      - make
+      - smartmontools
+      - sysstat
+      - libnsl
+      - libnsl.i686
+      - libnsl2
+      - libnsl2.i686
+      - xorg-x11-server-Xorg
+      - xorg-x11-xauth
+      - sysfsutils
+      - xterm
+
+  - name: Update all packages
+    yum:
+      name: "*"
+      state: latest
+
+  - name: Add marker to indicate successful packages execution for db
+    lineinfile:
+      path: /tmp/oracle_status.txt
+      line: "successful packages execution for db"
+      create: yes
+  
+  become: yes
+  when: db_packages_check is changed and db_packages_check.rc != 0

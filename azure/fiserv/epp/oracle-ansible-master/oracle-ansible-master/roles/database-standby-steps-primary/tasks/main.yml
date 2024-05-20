@@ -1,0 +1,389 @@
+---
+- block:
+  - block:
+    - name: Copy ssh key from ansible to Primary Server using rsync
+      synchronize:
+          src: "{{ ansible_ssh_private_key_file }}"
+          dest: /home/$USER/.ssh
+
+    - name: Change the Permission of ssh pem file
+      shell: chown -R $USER:$USER  /home/$USER/.ssh  
+
+    - name: Ensure rman script directory exists
+      stat:
+        path: "{{ oracle_rman_files }}"
+      register: oracle_rman_dir
+
+    - name: Create rman script Directory
+      file:
+        path: "{{ oracle_rman_files }}"
+        state: directory
+        owner: oracle
+        group: oinstall
+        recurse: yes
+        mode: '0755'
+      when: not oracle_rman_dir.stat.exists
+
+  - block:
+    - name: Check if marker for successful prim_stndbyredo_status exists in file
+      shell: "grep -i 'successful prim_standby_redo execution' /tmp/oracle_standby_steps_prim_status.txt"
+      register: prim_stndbyredo_status
+      ignore_errors: yes
+
+    - name: Configure Standby Redo Logs
+      shell: |
+          export ORACLE_BASE={{ oracle_base }}
+          export ORACLE_HOME={{ oracle_home }}
+          export ORACLE_SID={{ primary_db_name }}
+          export PATH=$ORACLE_HOME/bin:/usr/sbin:/home/oracle/.local/bin:/home/oracle/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin
+          printf ' \n' |  sqlplus sys/gyoFm8AYHsvZm48A as sysdba <<EOF
+          ALTER DATABASE ADD LOGFILE THREAD 1 GROUP 4 ( '/u01/{{ primary_db_name }}/onlinelog/redo04.log', '/redo/{{ primary_db_name }}/onlinelog/redo04.log' ) SIZE 200M REUSE;
+          ALTER DATABASE ADD LOGFILE THREAD 1 GROUP 5 ( '/u01/{{ primary_db_name }}/onlinelog/redo05.log', '/redo/{{ primary_db_name }}/onlinelog/redo05.log' ) SIZE 200M REUSE;
+          ALTER DATABASE ADD LOGFILE THREAD 1 GROUP 6 ( '/u01/{{ primary_db_name }}/onlinelog/redo06.log', '/redo/{{ primary_db_name }}/onlinelog/redo06.log' ) SIZE 200M REUSE;
+          ALTER DATABASE ADD LOGFILE THREAD 1 GROUP 7 ( '/u01/{{ primary_db_name }}/onlinelog/redo07.log', '/redo/{{ primary_db_name }}/onlinelog/redo07.log' ) SIZE 200M REUSE;
+          ALTER DATABASE ADD STANDBY LOGFILE THREAD 1 GROUP 21 ( '/u01/{{ primary_db_name }}/onlinelog/standby_redo21.log', '/redo/{{ primary_db_name }}/onlinelog/standby_redo21.log' ) SIZE 200M REUSE;
+          ALTER DATABASE ADD STANDBY LOGFILE THREAD 1 GROUP 22 ( '/u01/{{ primary_db_name }}/onlinelog/standby_redo22.log', '/redo/{{ primary_db_name }}/onlinelog/standby_redo22.log' ) SIZE 200M REUSE;
+          ALTER DATABASE ADD STANDBY LOGFILE THREAD 1 GROUP 23 ( '/u01/{{ primary_db_name }}/onlinelog/standby_redo23.log', '/redo/{{ primary_db_name }}/onlinelog/standby_redo23.log' ) SIZE 200M REUSE;
+          ALTER DATABASE ADD STANDBY LOGFILE THREAD 1 GROUP 24 ( '/u01/{{ primary_db_name }}/onlinelog/standby_redo24.log', '/redo/{{ primary_db_name }}/onlinelog/standby_redo24.log' ) SIZE 200M REUSE;
+          ALTER DATABASE ADD STANDBY LOGFILE THREAD 1 GROUP 25 ( '/u01/{{ primary_db_name }}/onlinelog/standby_redo25.log', '/redo/{{ primary_db_name }}/onlinelog/standby_redo25.log' ) SIZE 200M REUSE;
+          ALTER DATABASE ADD STANDBY LOGFILE THREAD 1 GROUP 26 ( '/u01/{{ primary_db_name }}/onlinelog/standby_redo26.log', '/redo/{{ primary_db_name }}/onlinelog/standby_redo26.log' ) SIZE 200M REUSE;
+          ALTER DATABASE ADD STANDBY LOGFILE THREAD 1 GROUP 27 ( '/u01/{{ primary_db_name }}/onlinelog/standby_redo27.log', '/redo/{{ primary_db_name }}/onlinelog/standby_redo27.log' ) SIZE 200M REUSE;
+          ALTER DATABASE ADD STANDBY LOGFILE THREAD 1 GROUP 28 ( '/u01/{{ primary_db_name }}/onlinelog/standby_redo28.log', '/redo/{{ primary_db_name }}/onlinelog/standby_redo28.log' ) SIZE 200M REUSE;
+          ALTER DATABASE ADD STANDBY LOGFILE THREAD 1 GROUP 29 ( '/u01/{{ primary_db_name }}/onlinelog/standby_redo29.log', '/redo/{{ primary_db_name }}/onlinelog/standby_redo29.log' ) SIZE 200M REUSE;
+          EOF
+      register: prim_standby_redo
+      become_user: oracle
+      when: prim_stndbyredo_status is changed and prim_stndbyredo_status.rc != 0
+
+    - debug:
+        var: prim_standby_redo
+      when: prim_standby_redo is changed and prim_standby_redo.rc == 0
+
+    - name: Add marker to indicate successful of Primary Database for Standby
+      lineinfile:
+        path: /tmp/oracle_standby_steps_prim_status.txt
+        line: "successful prim_standby_redo execution"
+        create: yes
+      when: prim_standby_redo is changed and prim_standby_redo.rc == 0
+
+  - block:
+    - name: Check if marker for successful prim_oldredo_status exists in file
+      shell: "grep -i 'successful prim_old_redo execution' /tmp/oracle_standby_steps_prim_status.txt"
+      register: prim_oldredo_status
+      ignore_errors: yes
+
+    - name: CLear and Recreate Old Redo Logs
+      shell: |
+          export ORACLE_BASE={{ oracle_base }}
+          export ORACLE_HOME={{ oracle_home }}
+          export ORACLE_SID={{ primary_db_name }}
+          export PATH=$ORACLE_HOME/bin:/usr/sbin:/home/oracle/.local/bin:/home/oracle/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin
+          printf ' \n' |  sqlplus sys/gyoFm8AYHsvZm48A as sysdba <<EOF
+          ALTER DATABASE CLEAR LOGFILE GROUP 3;
+          ALTER DATABASE CLEAR LOGFILE GROUP 2;
+          ALTER DATABASE CLEAR LOGFILE GROUP 1;
+          ALTER DATABASE DROP LOGFILE  GROUP 1;
+          ALTER DATABASE DROP LOGFILE  GROUP 2;
+          ALTER DATABASE DROP LOGFILE  GROUP 3;
+          ALTER DATABASE ADD LOGFILE THREAD 1 GROUP 1 ( '/u01/{{ primary_db_name }}/onlinelog/redo01.log', '/redo/{{ primary_db_name }}/onlinelog/redo01.log' ) SIZE 200M REUSE;
+          ALTER DATABASE ADD LOGFILE THREAD 1 GROUP 2 ( '/u01/{{ primary_db_name }}/onlinelog/redo02.log', '/redo/{{ primary_db_name }}/onlinelog/redo02.log' ) SIZE 200M REUSE;
+          ALTER DATABASE ADD LOGFILE THREAD 1 GROUP 3 ( '/u01/{{ primary_db_name }}/onlinelog/redo03.log', '/redo/{{ primary_db_name }}/onlinelog/redo03.log' ) SIZE 200M REUSE;
+          EOF
+      register: prim_old_redo
+      become_user: oracle
+      when: prim_oldredo_status is changed and prim_oldredo_status.rc != 0
+
+    - debug:
+        var: prim_old_redo
+      when: prim_old_redo is changed and prim_old_redo.rc == 0
+
+    - name: Add marker to indicate successful of Primary Database for Standby
+      lineinfile:
+        path: /tmp/oracle_standby_steps_prim_status.txt
+        line: "successful prim_old_redo execution"
+        create: yes
+      when: prim_old_redo is changed and prim_old_redo.rc == 0
+
+  - block:   
+    - name: Rename old tnsnames.ora and listener.ora files in Oracle Home
+      shell: |
+          mv "{{ oracle_home }}/network/admin/tnsnames.ora" "{{ oracle_home }}/network/admin/tnsnames.orabkp"
+          mv "{{ oracle_home }}/network/admin/listener.ora" "{{ oracle_home }}/network/admin/listener.orabkp"
+      ignore_errors: yes    
+
+    - name: Update tnsnames.ora
+      template:
+        src: tnsnames.j2
+        dest: "{{ grid_home }}/network/admin/tnsnames.ora"
+        owner: oracle
+        group: oinstall
+        mode: '0644'
+
+    - name: Update listener.ora
+      template:
+        src: "listener.j2"
+        dest: "{{ grid_home }}/network/admin/listener.ora"
+        owner: oracle
+        group: oinstall
+        mode: '0644'
+
+    - name: Link tnsnames.ora
+      file:
+        src: "{{ grid_home }}/network/admin/tnsnames.ora"
+        dest: "{{ oracle_home }}/network/admin/tnsnames.ora"
+        owner: oracle
+        group: oinstall
+        state: link
+
+    - name: Link listener.ora
+      file:
+        src: "{{ grid_home }}/network/admin/listener.ora"
+        dest: "{{ oracle_home }}/network/admin/listener.ora"
+        owner: oracle
+        group: oinstall
+        state: link
+
+    - name: Check if marker for successful lsnrctlreload exists in file
+      shell: "grep -i 'successful lsnrctlreload execution' /tmp/oracle_standby_steps_prim_status.txt"
+      register: lsnrctlreload_status
+      ignore_errors: yes
+
+    - name: Restart Listener
+      block: 
+        - name: restart the listener service
+          shell: |
+              export ORACLE_HOME={{ oracle_home }}
+              export JAVA_HOME=$ORACLE_HOME/jdk
+              export PATH=$ORACLE_HOME/bin:$ORACLE_HOME/jdk/bin:/usr/sbin:/home/oracle/.local/bin:/home/oracle/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin
+              printf '\n' | lsnrctl reload
+          become_user: oracle 
+          register: lsnrctlreloadstatus
+          when: lsnrctlreload_status is changed and lsnrctlreload_status.rc != 0
+
+        - name: Report Listener Starup Status
+          debug:
+            var: lsnrctlreloadstatus
+          when: lsnrctlreloadstatus is changed and lsnrctlreloadstatus.rc == 0
+
+        - name: Add marker to indicate successful of lsnrctlreload execution
+          lineinfile:
+            path: /tmp/oracle_standby_steps_prim_status.txt
+            line: "successful lsnrctlreload execution"
+            create: yes
+          when: lsnrctlreloadstatus is changed and lsnrctlreloadstatus.rc == 0
+
+  - name: Check if marker for successful prim_standby_parameters exists in file
+    shell: "grep -i 'successful prim_standby_parameters execution' /tmp/oracle_standby_steps_prim_status.txt"
+    register: prim_standby_param_status
+    ignore_errors: yes
+
+  - block:
+    - name: Set Data Guard Parameters
+      shell: |
+          export ORACLE_BASE={{ oracle_base }}
+          export ORACLE_HOME={{ oracle_home }}
+          export ORACLE_SID={{ primary_db_name }}
+          export PATH=$ORACLE_HOME/bin:/usr/sbin:/home/oracle/.local/bin:/home/oracle/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin
+          printf ' \n' |  sqlplus sys/gyoFm8AYHsvZm48A as sysdba <<EOF
+          ALTER SYSTEM SET log_archive_config='DG_CONFIG=({{ primary_db_name }},{{ standby_db_name }})' SCOPE=BOTH;
+          ALTER SYSTEM SET fal_server={{ primary_db_name }} SCOPE=BOTH;
+          ALTER SYSTEM SET log_archive_dest_2='SERVICE={{ standby_db_name }} ASYNC VALID_FOR=(ONLINE_LOGFILES,PRIMARY_ROLE) DB_UNIQUE_NAME={{ standby_db_name }}';
+          ALTER SYSTEM SET log_archive_dest_state_2=ENABLE;
+          ALTER SYSTEM SET log_archive_dest_1='location=use_db_recovery_file_dest valid_for=(all_logfiles,all_roles) db_unique_name={{ primary_db_name }}' SCOPE=BOTH;
+          ALTER SYSTEM SET standby_file_management=AUTO SCOPE=BOTH;
+          ALTER SYSTEM SET LOG_ARCHIVE_FORMAT='%t_%s_%r.dbf' SCOPE=SPFILE;
+          ALTER SYSTEM SET REMOTE_LOGIN_PASSWORDFILE=EXCLUSIVE SCOPE=SPFILE;
+          ALTER SYSTEM SET archive_lag_target=1800 SCOPE=BOTH;
+          ALTER DATABASE FORCE LOGGING;
+          ALTER DATABASE FLASHBACK ON;
+          ALTER SYSTEM SET DB_FILE_NAME_CONVERT='/data/{{ standby_db_name }}','/data/{{ primary_db_name }}' SCOPE=SPFILE;
+          ALTER SYSTEM SET LOG_FILE_NAME_CONVERT='/data/{{ standby_db_name }}','/data/{{ primary_db_name }}','/redo/{{ standby_db_name }}','/redo/{{ primary_db_name }}' SCOPE=SPFILE;
+          CREATE PFILE='{{ temp_pfile_path }}' FROM SPFILE;
+          EOF
+      register: prim_standby_parameters
+      become_user: oracle
+      when: prim_standby_param_status is changed and prim_standby_param_status.rc != 0
+
+    - debug:
+        var: prim_standby_parameters
+      when: prim_standby_parameters is changed and prim_standby_parameters.rc == 0
+
+    - name: Add marker to indicate successful of Primary Database for Standby
+      lineinfile:
+        path: /tmp/oracle_standby_steps_prim_status.txt
+        line: "successful prim_standby_parameters execution"
+        create: yes
+      when: prim_standby_parameters is changed and prim_standby_parameters.rc == 0
+
+  - block:
+    - name: Check if marker for successful ClusterStop exists in file
+      shell: "grep -i 'successful ClusterStop execution' /tmp/oracle_standby_steps_prim_status.txt"
+      register: ClusterStop_status
+      ignore_errors: yes
+
+    - name: Stop the Cluster Services
+      shell: export ORACLE_BASE={{ oracle_base }}; export GRID_HOME={{ grid_home }}; printf ' \n' | $GRID_HOME/bin/crsctl stop has || die 1 "crsctl issue"
+      register: ClusterStopstatus
+      when: ClusterStop_status is changed and ClusterStop_status.rc != 0
+
+    - name: Report ClusterStopstatus Status
+      debug:
+        var: ClusterStopstatus
+      when: ClusterStopstatus is changed and ClusterStopstatus.rc == 0
+
+    - name: Add marker to indicate successful of ClusterStopstatus execution
+      lineinfile:
+        path: /tmp/oracle_standby_steps_prim_status.txt
+        line: "successful ClusterStop execution"
+        create: yes
+      when: ClusterStopstatus is changed and ClusterStopstatus.rc == 0
+
+    - name: Pause for 20 seconds after stopping service
+      pause:
+        seconds: 20
+
+  - block:
+    - name: Check if marker for successful ClusterStart exists in file
+      shell: "grep -i 'successful ClusterStart execution' /tmp/oracle_standby_steps_prim_status.txt"
+      register: ClusterStart_status
+      ignore_errors: yes
+
+    - name: Start the Cluster Services
+      shell: export ORACLE_BASE={{ oracle_base }}; export GRID_HOME={{ grid_home }}; printf ' \n' | $GRID_HOME/bin/crsctl start has || die 1 "crsctl issue"
+      register: ClusterStartstatus
+      when: ClusterStart_status is changed and ClusterStart_status.rc != 0
+
+    - name: Report ClusterStartstatus Status
+      debug:
+        var: ClusterStartstatus
+      when: ClusterStartstatus is changed and ClusterStartstatus.rc == 0
+
+    - name: Add marker to indicate successful of ClusterStartstatus execution
+      lineinfile:
+        path: /tmp/oracle_standby_steps_prim_status.txt
+        line: "successful ClusterStart execution"
+        create: yes
+      when: ClusterStartstatus is changed and ClusterStartstatus.rc == 0
+
+    - name: Pause for 20 seconds after stopping service
+      pause:
+        seconds: 20
+
+  - name: Check if marker for successful prim_open_pdb exists in file
+    shell: "grep -i 'successful prim_open_pdb execution' /tmp/oracle_standby_steps_prim_status.txt"
+    register: prim_open_pdb_status
+    ignore_errors: yes
+
+  - block:
+    - name: Set {{pdb_name}} to open on startup
+      shell: |
+          export ORACLE_BASE={{ oracle_base }}
+          export ORACLE_HOME={{ oracle_home }}
+          export ORACLE_SID={{ primary_db_name }}
+          export PATH=$ORACLE_HOME/bin:/usr/sbin:/home/oracle/.local/bin:/home/oracle/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin
+          printf ' \n' |  sqlplus sys/gyoFm8AYHsvZm48A as sysdba <<EOF
+          ALTER PLUGGABLE DATABASE {{pdb_name}} OPEN;
+          ALTER SYSTEM REGISTER;
+          ALTER PLUGGABLE DATABASE SAVE STATE;
+          EOF
+      register: prim_open_pdb
+      become_user: oracle
+      when: prim_open_pdb_status is changed and prim_open_pdb_status.rc != 0
+
+    - debug:
+        var: prim_open_pdb
+      when: prim_open_pdb is changed and prim_open_pdb.rc == 0
+
+    - name: Add marker to indicate successful of Primary Database for Standby
+      lineinfile:
+        path: /tmp/oracle_standby_steps_prim_status.txt
+        line: "successful prim_open_pdb execution"
+        create: yes
+      when: prim_open_pdb is changed and prim_open_pdb.rc == 0
+
+  - name: Check if marker for successful oracle service exists in file
+    shell: "grep -i 'successful oracle service execution' /tmp/oracle_standby_steps_prim_status.txt"
+    register: oracleservice_status
+    ignore_errors: yes
+    
+  - block:
+    - name: Create Oracle Service on Primary for Automatic Failover
+      shell: |
+          export ORACLE_BASE={{ oracle_base }}
+          export ORACLE_HOME={{ oracle_home }}
+          export ORACLE_SID={{ primary_db_name }}
+          export PATH=$ORACLE_HOME/bin:/usr/sbin:/home/oracle/.local/bin:/home/oracle/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin
+          printf ' \n' | srvctl add service -d {{ primary_db_name }} -service {{dg_failover_service}} -pdb {{pdb_name}} -role PRIMARY -failovermethod BASIC -failovertype SELECT -failoverdelay 180 -failoverretry 5
+      register: create_orclservice
+      become_user: oracle
+      when: oracleservice_status is changed and oracleservice_status.rc != 0
+
+    - debug:
+        var: create_orclservice
+      when: create_orclservice is changed and create_orclservice.rc == 0
+
+    - name: Add marker to indicate successful oracle service creation
+      lineinfile:
+        path: /tmp/oracle_standby_steps_prim_status.txt
+        line: "successful oracle service execution"
+        create: yes
+      when: create_orclservice is changed and create_orclservice.rc == 0
+
+  become: yes
+
+
+
+- block: 
+  - block:
+    - name: Check if PWFile exists in rman scripts Directory
+      stat:
+        path: "{{ primary_pwfile_path }}"
+      register: response_file_stat
+      become_user: oracle
+
+    - name: Copy PWFile to rman scripts Directory
+      shell: |
+        cp -prf "{{ primary_pwfile_path }}" /opt/oracle/extra
+        chmod 777 /opt/oracle/extra/orapw"{{ primary_db_name}}"
+      when: response_file_stat.stat.exists
+      become_user: oracle
+
+  - block:
+    - name: Check if PWFile exists in tmp directory of Primary Server
+      stat:
+        path: "/opt/oracle/extra/orapw{{ primary_db_name}}"
+      register: primary_tmppwfile_path
+      become_user: oracle
+
+    - name: Copy PWFile from Primary Server to Standby using rsync
+      shell: 
+        cmd: printf 'yes \n' | rsync -e "ssh -i {{keyname}}" /opt/oracle/extra/orapw"{{ primary_db_name}}" azureuser@"{{ standby_db_ip }}":/tmp
+      when: primary_tmppwfile_path.stat.exists
+
+  - block:
+    - name: Check if PFile exists in rman scripts Directory
+      stat:
+        path: "{{ temp_pfile_path }}"
+      register: response_file_stat1
+      become_user: oracle
+
+    - name: Copy PFile to rman scripts Directory
+      shell: |
+        cp -prf "{{ temp_pfile_path }}" /tmp
+        chmod 777 /tmp/init"{{ primary_db_name}}".ora
+      when: response_file_stat1.stat.exists
+      become_user: oracle
+      become: yes
+
+  - block:
+    - name: Check if PFile exists in tmp directory of Primary Server
+      stat:
+        path: "/tmp/init{{ primary_db_name}}.ora"
+      register: primary_tmppfile_path
+      become_user: oracle
+
+    - name: Copy PFile from Primary Server to Standby using rsync
+      shell: 
+        cmd: printf 'yes \n' | rsync -e "ssh -i {{keyname}}" /tmp/init"{{ primary_db_name}}".ora azureuser@"{{ standby_db_ip }}":/tmp
+      when: primary_tmppfile_path.stat.exists
+    

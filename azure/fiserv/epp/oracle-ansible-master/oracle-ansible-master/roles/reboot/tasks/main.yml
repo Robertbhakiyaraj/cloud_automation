@@ -1,0 +1,46 @@
+---
+# tasks file for reboot
+- name: Check if marker for successful reboot exists in file
+  shell: "grep -i 'successful reboot execution' /tmp/oracle_status.txt"
+  register: reboot_status
+  become: yes
+  ignore_errors: yes
+
+- block:
+    - name: Set SELINUX to disabled
+      lineinfile:
+        path: /etc/selinux/config
+        regexp: '^SELINUX='
+        line: 'SELINUX=disabled'
+      register: sel_data  
+
+    - name: Stop firewall and disable SELinux
+      block:
+        - name: Stop firewalld
+          service:
+            name: firewalld
+            state: stopped  
+            enabled: no
+
+        - name: Reboot the system
+          shell: sleep 5 && init 6
+          async: 1 
+          poll: 0 
+
+        - name: Wait for SSH to become available
+          wait_for_connection:
+            delay: 60
+            timeout: 300
+      when: sel_data.changed == true
+
+    - name: Ping hosts after reboot
+      ping:
+
+    - name: Add marker to indicate successful reboot execution
+      lineinfile:
+        path: /tmp/oracle_status.txt
+        line: "successful reboot execution"
+        create: yes              
+  
+  become: yes
+  when: reboot_status is changed and reboot_status.rc != 0  

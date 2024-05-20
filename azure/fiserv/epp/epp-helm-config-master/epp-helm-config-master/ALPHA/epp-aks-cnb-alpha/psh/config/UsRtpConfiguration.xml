@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<UsRtpConfiguration xmlns="urn:dps.UsRtpConfiguration">
+    <Participants>
+        <Participant> <!-- repeats for each participant-->
+            <Name>PART1</Name>
+            <InstgAgtMmbId>200000017A1</InstgAgtMmbId> <!-- value used in the message Fr/Id for outgoing requests -->
+            <InstdAgtMmbId>990000001T1</InstdAgtMmbId> <!-- value used in the message To/Id for outgoing requests -->
+            <AliasKeyPair>disabled</AliasKeyPair>
+            <MaintenanceThreadInterval>10000</MaintenanceThreadInterval> <!-- value that sets the maximum time the MaintenanceThread may wait until it attempts to repeat its processing -->
+            <LeaseExpiration>60000</LeaseExpiration> <!-- interval of time used to specify the next lease expiration as set from current time by the active thread -->
+            <Heartbeat>
+                <Interval>30000</Interval> <!-- minimum amount of time to wait from last received message to send a heartbeat (echo) request -->
+                <Timeout>60000</Timeout> <!-- maximum amount of time in which to allow to elapse before the state of the link as sotred in the database is set to inactive and the link itself goes offline for the cluster -->
+            </Heartbeat>
+        </Participant>
+        <!-- Additional participants can be listed here but require a unique Name -->
+    </Participants>
+    <MessageSettings> <!-- Require section for each outgoing message type -->
+        <Message>
+            <Format>admn.001.001.01</Format>
+            <Priority>5</Priority>
+            <Persisted>false</Persisted>
+            <TimeToLive>2000</TimeToLive> <!-- Sets the expiration time on the outgoing message -->
+            <ResponseWaitTime>5000</ResponseWaitTime> <!-- time to wait for a synchronous response.  Only used on administrative messages -->
+        </Message>
+        <Message>
+            <Format>admn.003.001.01</Format>
+            <Priority>5</Priority>
+            <Persisted>false</Persisted>
+            <TimeToLive>2000</TimeToLive>
+            <ResponseWaitTime>5000</ResponseWaitTime>
+        </Message>
+        <Message>
+            <Format>admn.005.001.01</Format>
+            <Priority>5</Priority>
+            <Persisted>false</Persisted>
+            <TimeToLive>2000</TimeToLive>
+            <ResponseWaitTime>5000</ResponseWaitTime>
+        </Message>
+    </MessageSettings>
+</UsRtpConfiguration>

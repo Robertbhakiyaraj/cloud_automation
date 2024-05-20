@@ -1,0 +1,67 @@
+{{- if eq true .Values.initDb.runjob }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{.Values.name}}-initdb{{randAlphaNum 3 | lower}} # create a new job every time the pipeline is executed
+  namespace: {{.Values.namespace}}
+  labels:
+    app: {{.Values.name}}
+spec:
+  ttlSecondsAfterFinished: 86400 # delete job after it finishes
+  template:
+    spec:
+      serviceAccountName: bank-aks-sa
+      imagePullSecrets: {{ toYaml .Values.imagePullSecret | nindent 6 }}
+      restartPolicy: Never
+      containers:
+      - name: psh
+        image: {{.Values.image.psh}}
+        command:
+        - sh
+        - -c
+        - |
+{{ .Files.Get "scripts/setupenvironment.sh" | indent 10 }}
+
+{{ .Files.Get "scripts/fixmanagedjvminstancetable.sh" | indent 10 }}
+
+{{ .Files.Get "scripts/createschema.sh" | indent 10 }}
+
+{{ .Files.Get "scripts/initdb.sh" | indent 10 }}
+
+{{ .Files.Get "scripts/createwlsessiontable.sh" | indent 10 }}
+
+          echo "Sleeping for 30 minutes to allow allow access to the environment if necessary..."
+          sleep 30m
+          echo "Job finished"
+
+        imagePullPolicy: IfNotPresent
+
+        envFrom:
+        - configMapRef:
+            name: {{.Values.name}}-configmap
+        - secretRef:
+            name: {{.Values.name}}-secret
+        env:
+        - name: MY_POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: MY_POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        ports:
+        - containerPort: 7001
+        volumeMounts:
+        - name: gatewaydir
+          mountPath: /opt/epp/gateway
+          subPath: {{.Values.nfsGatewaySubPath}}
+        {{- include "dynamic.mounts" . }}
+
+      volumes:
+      - name: gatewaydir
+        nfs:
+          server: {{.Values.nfsHost}}
+          path: {{.Values.nfsPath}}
+      {{- include "dynamic.volumes" . }}
+{{- end }}

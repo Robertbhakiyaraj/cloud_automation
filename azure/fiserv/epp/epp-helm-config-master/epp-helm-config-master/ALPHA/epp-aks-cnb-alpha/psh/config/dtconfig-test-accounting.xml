@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<config>
+  
+    <mapper>
+    <ACCNotificationMapper>com.dovetailsys.accounting.mapper.ISO20022AccountingNotifMapperV5</ACCNotificationMapper>
+    </mapper>
+    
+    
+
+    <stage>
+        <accounting>
+
+            <BankToCustomerDebitCreditNotifStage scope="stageName" scope-value="SendPendingAccountingNotification">
+                <Validate>false</Validate>
+                <ACCNotificationMapper>${mapper/ACCNotificationMapper}</ACCNotificationMapper>
+                <com.dovetailsys.imf.RequestMessageTranslator>com.dovetailsys.ims.IMSRequestMessageTranslator</com.dovetailsys.imf.RequestMessageTranslator>
+            </BankToCustomerDebitCreditNotifStage>
+
+           
+
+            <BankToCustomerDebitCreditNotifStage scope="stageName" scope-value="SendBookedAccountingNotification">
+                <Validate>false</Validate>
+                <ACCNotificationMapper>${mapper/ACCNotificationMapper}</ACCNotificationMapper>
+                <PeriodicAccounting>false</PeriodicAccounting>
+                <AccountingUtil>com.dovetailsys.accounting.AccountingUtil</AccountingUtil>
+                <IgnoreDDA>false</IgnoreDDA>
+                <IgnoreGL>false</IgnoreGL>
+                <ApplicableRule>!(['NCHCT','NCHDD','NCHXC','NCHXD'] contains Pay_Type) &amp;&amp; !(['NCHCT','NCHDD','NCHXC','NCHXD', 'NCC'] contains Source) &amp;&amp; 
+				!(['NCHCT','NCHDD','NCHXC','NCHXD'] contains Requested_Pay_Type)</ApplicableRule> 
+             
+            </BankToCustomerDebitCreditNotifStage>
+
+          
+
+        </accounting>
+    </stage>
+
+		<job>
+				<IfAccNotificationJob>
+				<ACCNotificationMapper>${mapper/ACCNotificationMapper}</ACCNotificationMapper>
+				</IfAccNotificationJob>
+		</job>
+
+</config>

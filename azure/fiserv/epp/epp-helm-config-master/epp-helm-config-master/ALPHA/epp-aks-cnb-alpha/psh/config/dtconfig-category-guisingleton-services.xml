@@ -1,0 +1,50 @@
+<?xml version = "1.0" encoding = "ISO-8859-1"?>
+<config>
+<dovetailManagement>
+    <managedInstance scope="name" scope-value="Application"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+    <managedInstance scope="name" scope-value="CustomerLimitCheck"><enabled>false</enabled><runOnStartup>false</runOnStartup></managedInstance>
+    <managedInstance scope="name" scope-value="DovetailAgentService"><enabled>false</enabled><runOnStartup>false</runOnStartup></managedInstance>
+    <managedInstance scope="name" scope-value="DynamicLog4J"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+    <managedInstance scope="name" scope-value="DynamicMonitoring"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+    <managedInstance scope="name" scope-value="EnvironmentCheck"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+    <managedInstance scope="name" scope-value="GUISentinel"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+    <managedInstance scope="name" scope-value="JobProcessing">
+                  <service>JobProcessingService</service>
+                  <startSequence>3</startSequence>
+                  <runOnStartup>true</runOnStartup>
+                  <enabled>true</enabled>
+                  <parameters>
+                      <parameter>
+                      {"DPP","Utility","AutoSingletonBackup=true"}
+                      </parameter>
+                  </parameters>
+    </managedInstance>
+    <managedInstance scope="name" scope-value="LiquidityManagerUS">
+        <service>LiquidityManagerService</service>
+        <startSequence>45</startSequence>
+        <runOnStartup>true</runOnStartup>
+        <enabled>true</enabled>
+        <parameters>
+            <parameter>
+                {
+                "DOMAIN=DPP",
+                "USERID=Utility_US",
+                "PASSWORD=Dovetail",
+                "ACCOUNTS=All-FEDWIRE:1",
+                "SLEEP MILLISECS=5000",
+                "AutoSingletonBackup=true"
+                }
+            </parameter>
+        </parameters>
+    </managedInstance>
+    <managedInstance scope="name" scope-value="TDS_ObjectCacheMonitor">
+        <service>ObjectCacheMonitorService</service>
+        <startSequence>11</startSequence>
+        <enabled>true</enabled>
+        <runOnStartup>true</runOnStartup>
+        <parameters>
+            <parameter>TDS</parameter>
+        </parameters>
+    </managedInstance>
+  </dovetailManagement>
+</config>

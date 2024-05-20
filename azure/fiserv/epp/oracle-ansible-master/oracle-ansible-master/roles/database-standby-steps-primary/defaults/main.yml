@@ -1,0 +1,24 @@
+oracle_base: /opt/oracle
+oracle_home: "{{ oracle_base }}/product/19.3.0/db"
+grid_home: "{{ oracle_base }}/product/19.3.0/grid"
+oracle_binaries: /opt/oracle/software
+oracle_dbpatch: /opt/oracle/software/patches
+oracle_rman_files: /opt/oracle/extra
+primary_oracle_sid: PRCDB
+standby_oracle_sid: STCDB
+pdb_name: PRPDB
+dg_failover_service: DG_PR
+dg_failover_tnsname: AZORCLPR
+oraclecharset: "AL32UTF8"
+oraclenls_charset: "AL16UTF16"
+listener_name: LISTENER
+primary_db_name: PRCDB
+standby_db_name: STCDB
+ansible_user: azureuser
+oracle_user: oracle
+oracle_group: oinstall
+primary_pfile_path: "{{ oracle_home }}/dbs/init{{ primary_db_name }}.ora"
+temp_pfile_path: "{{ oracle_rman_files }}/init{{ primary_db_name }}.ora"
+primary_pwfile_path: "{{ oracle_home }}/dbs/orapw{{ primary_db_name }}"
+temp_pwfile_path: "{{ oracle_rman_files }}/orapw{{ primary_db_name }}"
+run_sqlplus: "ORACLE_BASE={{ oracle_base }} ORACLE_HOME={{ oracle_home }} LD_LIBRARY_PATH={{ oracle_home }}/lib {{ oracle_home }}/bin/sqlplus "

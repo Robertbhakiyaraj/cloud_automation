@@ -1,0 +1,24 @@
+---
+# tasks for prerequirements
+- name: Check if marker for successful prerequirements for mq
+  shell: "grep -i 'successful prerequirements mq' /tmp/fs_status.txt"
+  register: prerequirements_mq
+  become: yes
+  ignore_errors: yes
+
+- block:  
+  - name: Install required packages
+    yum:
+      name: "{{ item }}"
+      state: present
+    loop:
+      - traceroute
+
+  - name: Add marker to indicate successful prerequirements for mq
+    lineinfile:
+      path: /tmp/fs_status.txt
+      line: "successful prerequirements mq"
+      create: yes
+
+  become: yes
+  when: prerequirements_mq is changed and prerequirements_mq.rc != 0

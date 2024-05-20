@@ -1,0 +1,179 @@
+---
+# tasks file for observer-database-install
+- name: Check if marker for successful observerdbinstall exists in file
+  shell: "grep -i 'successful observerdbinstall execution' /tmp/oracle_status.txt"
+  register: observerdbinstall_status
+  become: yes
+  ignore_errors: yes
+
+- block:
+    - name: Check if marker for successful dbunzip exists in file
+      shell: "grep -i 'successful dbunzip execution' /tmp/oracle_status.txt"
+      register: dbunzip_status
+      ignore_errors: yes
+      
+    - name: Unzip Oracle DB Infrastructure Software
+      unarchive:
+        src: /opt/oracle/software/{{database_software}}
+        dest: /opt/oracle/product/19.3.0/db
+        remote_src: yes
+        extra_opts: "-q"
+      become_user: oracle
+      when: dbunzip_status is changed and dbunzip_status.rc != 0
+
+    - name: Add marker to indicate successful of dbunzip execution
+      lineinfile:
+         path: /tmp/oracle_status.txt
+         line: "successful dbunzip execution"
+         create: yes
+
+    - name: Check if response file exists
+      stat:
+        path: /opt/oracle/product/19.3.0/db/install/response/db_install.rsp
+      register: response_file_stat
+      become_user: oracle
+
+    - name: Create backup if response file exists
+      shell: "cp -prf /opt/oracle/product/19.3.0/db/install/response/db_install.rsp /opt/oracle/product/19.3.0/db/install/response/db_install.rsp.bkp"
+      when: response_file_stat.stat.exists
+      become_user: oracle
+
+    - name: Modify response file
+      lineinfile:
+        path: /opt/oracle/product/19.3.0/db/install/response/db_install.rsp
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+      loop:
+        - { regexp: '^oracle.install.option=', line: 'oracle.install.option=INSTALL_DB_SWONLY' }
+        - { regexp: '^UNIX_GROUP_NAME=', line: 'UNIX_GROUP_NAME=oinstall' }
+        - { regexp: '^INVENTORY_LOCATION=', line: 'INVENTORY_LOCATION=/opt/oracle/oraInventory' }
+        - { regexp: '^ORACLE_HOME=', line: 'ORACLE_HOME=/opt/oracle/product/19.3.0/db' }
+        - { regexp: '^ORACLE_BASE=', line: 'ORACLE_BASE=/opt/oracle' }
+        - { regexp: '^oracle.install.db.InstallEdition=', line: 'oracle.install.db.InstallEdition=EE' }
+        - { regexp: '^oracle.install.db.OSDBA_GROUP=', line: 'oracle.install.db.OSDBA_GROUP=oinstall' }
+        - { regexp: '^oracle.install.db.OSOPER_GROUP=', line: 'oracle.install.db.OSOPER_GROUP=dba' }
+        - { regexp: '^oracle.install.db.OSBACKUPDBA_GROUP=', line: 'oracle.install.db.OSBACKUPDBA_GROUP=oinstall' }
+        - { regexp: '^oracle.install.db.OSDGDBA_GROUP=', line: 'oracle.install.db.OSDGDBA_GROUP=oinstall' }
+        - { regexp: '^oracle.install.db.OSKMDBA_GROUP=', line: 'oracle.install.db.OSKMDBA_GROUP=oinstall' }
+        - { regexp: '^oracle.install.db.OSRACDBA_GROUP=', line: 'oracle.install.db.OSRACDBA_GROUP=oinstall' }
+        - { regexp: '^oracle.install.db.rootconfig.executeRootScript=', line: 'oracle.install.db.rootconfig.executeRootScript=false' }
+        - { regexp: '^oracle.install.db.ConfigureAsContainerDB=', line: 'oracle.install.db.ConfigureAsContainerDB=false' }
+        - { regexp: '^oracle.install.db.config.starterdb.memoryOption=', line: 'oracle.install.db.config.starterdb.memoryOption=false' }
+        - { regexp: '^oracle.install.db.config.starterdb.installExampleSchemas=', line: 'oracle.install.db.config.starterdb.installExampleSchemas=false' }
+        - { regexp: '^oracle.install.db.config.starterdb.managementOption=', line: 'oracle.install.db.config.starterdb.managementOption=DEFAULT' }
+        - { regexp: '^oracle.install.db.config.starterdb.enableRecovery=', line: 'oracle.install.db.config.starterdb.enableRecovery=false' }
+      become_user: oracle  
+      when: response_file_stat.stat.exists
+
+    - name: Copy .bash_profile template to Oracle user's home directory
+      template:
+        src: "bash_profile.j2"
+        dest: "/home/oracle/.bash_profile"
+        owner: oracle
+        group: oinstall
+        mode: "0644"
+
+
+    - name: Source .bash_profile
+      shell: "source ~/.bash_profile && echo 'Success: .bash_profile sourced'"
+      register: bash_profile_result
+      changed_when: false
+
+    - name: Print results
+      debug:
+        msg: "{{ item.stdout }}"
+      loop:
+        - "{{ bash_profile_result }}" 
+
+    - name: Run prerequisites check
+      shell: |
+        export CV_ASSUME_DISTID=RHEL8.0      
+        /opt/oracle/product/19.3.0/db/runInstaller -executePrereqs -silent -responseFile /opt/oracle/product/19.3.0/db/install/response/db_install.rsp
+      register: prereq_check_result
+      become_user: oracle
+      ignore_errors: yes
+
+    - debug:
+         var: prereq_check_result
+      ignore_errors: yes
+      
+
+    - name: Check if marker for successful dbruninstaller exists in file
+      shell: "grep -i 'successful dbruninstaller execution' /tmp/oracle_status.txt"
+      register: dbruninstaller_status
+      ignore_errors: yes
+      
+
+    - name: Start Silent Database Installation
+      shell: |
+        export CV_ASSUME_DISTID=RHEL8.0      
+        /opt/oracle/product/19.3.0/db/runInstaller -silent -responseFile /opt/oracle/product/19.3.0/db/install/response/db_install.rsp
+      register: db_installation_result
+      become_user: oracle
+      when: dbruninstaller_status is changed and dbruninstaller_status.rc != 0
+
+    - debug:
+         var: db_installation_result
+      when: db_installation_result is changed and db_installation_result.rc == 0
+
+
+    - name: Add marker to indicate successful of dbruninstaller execution
+      lineinfile:
+        path: /tmp/oracle_status.txt
+        line: "successful dbruninstaller execution"
+        create: yes
+      when:  db_installation_result is changed and db_installation_result.rc == 0
+
+    - name: Check if marker for successful dborainst exists in file
+      shell: "grep -i 'successful dborainst execution' /tmp/oracle_status.txt"
+      register: dborainst_status
+      ignore_errors: yes
+
+    - name: Execute root.sh
+      shell: "/opt/oracle/oraInventory/orainstRoot.sh"
+      register: dborainst_execution
+      when: dborainst_status is changed and dborainst_status != 0 and db_installation_result.rc == 0
+
+    - debug:
+         var: dborainst_execution
+      when: dborainst_status is changed and dborainst_status != 0 and db_installation_result.rc == 0
+      
+
+    - name: Add marker to indicate successful of dborainst execution
+      lineinfile:
+         path: /tmp/oracle_status.txt
+         line: "successful dborainst execution"
+         create: yes
+      when: dborainst_execution is changed and dborainst_execution.rc == 0
+
+
+    - name: Check if marker for successful dbrootsh exists in file
+      shell: "grep -i 'successful dbrootsh execution' /tmp/oracle_status.txt"
+      register: dbrootsh_status
+      ignore_errors: yes
+
+    - name: Execute root.sh
+      shell: "/opt/oracle/product/19.3.0/db/root.sh"
+      register: dbrootsh_execution
+      when: dbrootsh_status is changed and dbrootsh_status != 0 and dborainst_execution.rc == 0
+
+    - debug:
+         var: dbrootsh_execution
+      when: dbrootsh_status is changed and dbrootsh_status != 0 and dborainst_execution.rc == 0
+      
+
+    - name: Add marker to indicate successful of dbrootsh execution
+      lineinfile:
+         path: /tmp/oracle_status.txt
+         line: "successful dbrootsh execution"
+         create: yes
+      when: dbrootsh_execution is changed and dbrootsh_execution.rc == 0
+
+    - name: Add marker to indicate successful of observerdbinstall execution 
+      lineinfile:
+         path: /tmp/oracle_status.txt
+         line: "successful observerdbinstall execution"
+         create: yes      
+      
+  become: yes
+  when: observerdbinstall_status is changed and observerdbinstall_status.rc != 0

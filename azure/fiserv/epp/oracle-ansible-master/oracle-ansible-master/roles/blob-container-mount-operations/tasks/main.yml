@@ -1,0 +1,55 @@
+---
+# tasks file for storage account blob container mount
+- name: Check if marker for successful storage account blob container mount
+  shell: "grep -i 'successful blob container mount' /tmp/oracle_status.txt"
+  register: blob_mount_check
+  become: yes
+  ignore_errors: yes
+
+- block:
+
+  - name: Resolve storage IP address
+    shell: "nslookup {{ shareendpoint }} | awk '/Address:/ && !/#/ {print $2}'"
+    register: nslookup_output
+
+  - set_fact:
+        ip_address: "{{ nslookup_output.stdout }}"
+
+  - name: Check if mount directory is exist
+    stat:
+      path: "{{ mountpointpath }}"
+    register: mount_dir
+
+
+  - name: Ensure mount point directory exists
+    file:
+      path: "{{ mountpointpath }}"
+      owner: oracle
+      group: oinstall      
+      state: directory
+      recurse: yes
+    when: not mount_dir.stat.exists  
+
+  - name: Add blob container nfs mount entry to /etc/fstab
+    lineinfile:
+      path: "/etc/fstab"
+      line: "{{ip_address}}:/{{storageaccount_name}}/{{container_name}}   {{ mountpointpath }}     nfs     rw,bg,hard,nointr,rsize=32768,wsize=32768,tcp,vers=3,actimeo=0,timeo=600       0       0"
+      create: yes    
+
+  - name: Mount the blob container as a nfs
+    mount:
+      path: "{{ mountpointpath }}"
+      src: "{{ip_address}}:/{{storageaccount_name}}/{{container_name}}"
+      fstype: nfs
+      opts: "sec=sys,vers=3,nolock,proto=tcp"
+      state: mounted
+      
+  - name: Add marker to indicate successful blob container mount 
+    lineinfile:
+        path: /tmp/oracle_status.txt
+        line: "successful blob container mount"
+        create: yes
+
+  become: yes
+  when: blob_mount_check is changed and blob_mount_check.rc != 0
+

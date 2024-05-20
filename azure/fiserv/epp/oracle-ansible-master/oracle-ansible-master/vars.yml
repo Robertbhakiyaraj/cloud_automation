@@ -1,0 +1,59 @@
+# vars.yml
+
+#lvextend Size for root,home and tmp
+lv_extension_threshold:
+  - { lvpath: "rootlv", resize: 8 }
+  - { lvpath: "homelv", resize: 5 }
+  - { lvpath: "tmplv", resize: 5 }   
+
+#Swap and /Opt/oracle Size in GB
+swap_space: 16
+optoracle_space: 200
+
+#Additional Disk Size in GB
+u01_size: 500
+archive_size: 200
+redo_size: 50
+undo_size: 60
+tmptsb_size: 70
+
+#Oracle Software Path
+source_oracle_software_location: /drives/d/Oracle_Install/OracleBinaries/
+
+#Zip Filenames for gird and db
+grid_software: "V982068-01.zip"
+database_software: "V982063-01.zip"
+grid_opatch: "p6880880_190000_Linux-x86-64.zip"
+database_opatch: "p6880880_190000_Linux-x86-64.zip"
+oracle_dbpatch: "p36233126_190000_Linux-x86-64.zip"
+
+
+#Oracle PSU Path
+oracle_psu_patches: "/opt/oracle/software/patches/36233126"
+
+#Patches ID's for PSU
+patches: 
+ - id: 36233263
+
+#NFS Blob container mount details
+shareendpoint: "epplowertest.blob.core.windows.net"
+storageaccount_name: "epplowertest"
+container_name: "epplowercontainertest"
+mountpointpath: "/mnt/laxepptest"
+
+
+#Data Guard Setup details
+ansible_ssh_private_key_file: /home/mobaxterm/.ssh/epp-azure-test.pem
+
+primary_ssh_location: /home/azureuser/.ssh
+
+keyname: /home/azureuser/.ssh/epp-azure-test.pem
+
+primary_db_ip: "10.155.144.120"
+standby_db_ip: "10.155.144.121"
+
+primary_db_hostnm: oracle-epp-lower-laxoraclevm1
+standby_db_hostnm: oracle-epp-lower-laxoraclevm2
+
+primary_hostname: oracle-epp-lower-laxoraclevm1
+standby_hostname: oracle-epp-lower-laxoraclevm2

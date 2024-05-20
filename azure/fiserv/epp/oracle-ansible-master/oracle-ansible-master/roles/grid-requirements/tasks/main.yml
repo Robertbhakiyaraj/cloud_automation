@@ -1,0 +1,118 @@
+---
+# tasks file for pre-req-grid
+- name: Check if marker for successful grid packages exists in file
+  shell: "grep -i 'successful packages execution for grid' /tmp/oracle_status.txt"
+  register: grid_packages_check
+  become: yes
+  ignore_errors: yes
+
+- block:
+  - name: Ensure software directory exists
+    stat:
+      path: /opt/oracle/software
+    register: software_dir
+
+  - name: Copy file using rsync
+    synchronize:
+        src: "{{ source_oracle_software_location }}"
+        dest: /opt/oracle/software
+    when: software_dir.stat.exists
+
+  - name: Check if marker for successful gridunzip  exists in file
+    shell: "grep -i 'successful gridunzip execution' /tmp/oracle_status.txt"
+    register: gridunzip
+    ignore_errors: yes
+
+  - name: Change the permission for /opt/oracle/software
+    shell: "chown -R oracle:oinstall /opt/oracle/"
+
+  - name: Unzip Oracle Grid Infrastructure Software
+    unarchive:
+        src: /opt/oracle/software/{{grid_software}}
+        dest: /opt/oracle/product/19.3.0/grid
+        remote_src: yes
+        extra_opts: "-q"
+    become_user: oracle
+    when: gridunzip is changed and gridunzip.rc != 0
+
+  - name: Add marker to indicate successful gridunzip execution
+    lineinfile:
+      path: /tmp/oracle_status.txt
+      line: "successful gridunzip execution"
+      create: yes  
+
+
+  - name: Check if oracle-database-preinstall-19c is installed
+    command: rpm -q i oracle-database-preinstall
+    register: oracle_database_preinstall_installed
+    changed_when: false
+    failed_when: false
+
+  - name: Install oracle-database-preinstall-19c
+    yum:
+      name: /opt/oracle/software/oracle-database-preinstall-19c-1.0-2.el8.x86_64.rpm
+      state: present
+    when: oracle_database_preinstall_installed.rc != 0
+
+
+  - name: Check if cvuqdisk is installed
+    command: rpm -q cvuqdisk
+    register: cvuqdisk_installed
+    changed_when: false
+    failed_when: false
+
+  - name: Install cvuqdisk
+    yum:
+      name: /opt/oracle/product/19.3.0/grid/cv/rpm/cvuqdisk-1.0.10-1.rpm
+      state: present
+    when: cvuqdisk_installed.rc != 0
+
+  - name: Install required packages
+    yum:
+      name: "{{ item }}"
+      state: present
+    loop:
+      - bc
+      - binutils
+      - elfutils-libelf
+      - glibc
+      - glibc-devel
+      - ksh
+      - libaio
+      - libaio-devel
+      - libXrender
+      - libXrender-devel
+      - libX11
+      - libXau
+      - libXi
+      - libXtst
+      - libgcc
+      - librdmacm-devel
+      - libstdc++
+      - libstdc++-devel
+      - libxcb
+      - make
+      - smartmontools
+      - sysstat
+      - libnsl
+      - libnsl.i686
+      - libnsl2
+      - libnsl2.i686
+      - xorg-x11-server-Xorg
+      - xorg-x11-xauth
+      - sysfsutils
+      - xterm
+
+  - name: Update all packages
+    yum:
+      name: "*"
+      state: latest
+
+  - name: Add marker to indicate successful packages execution for grid
+    lineinfile:
+      path: /tmp/oracle_status.txt
+      line: "successful packages execution for grid"
+      create: yes
+  
+  become: yes
+  when: grid_packages_check is changed and grid_packages_check.rc != 0

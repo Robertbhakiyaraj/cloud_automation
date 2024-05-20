@@ -1,0 +1,88 @@
+---
+# tasks file for user-directory-setup
+- name: Check if marker for successful execution of user-directory setup exists in file
+  shell: "grep -i 'successful user directory setup execution' /tmp/oracle_status.txt"
+  register: userdir_status
+  become: yes
+  ignore_errors: yes
+
+- block:
+    - name: Check if oinstall group exists
+      shell: getent group oinstall
+      register: oinstall_group
+      ignore_errors: true
+
+    - name: Create oinstall group if it doesn't exist
+      group:
+        name: oinstall
+        gid: 501
+      when: oinstall_group.rc != 0
+
+    - name: Check if dba group exists
+      shell: getent group dba
+      register: dba_group
+      ignore_errors: true
+
+    - name: Create dba group if it doesn't exist
+      group:
+        name: dba
+        gid: 502
+      when: dba_group.rc != 0
+
+    - name: Check if oracle user exists
+      shell: getent passwd oracle
+      register: oracle_user
+      ignore_errors: true
+
+    - name: Create oracle user if it doesn't exist
+      user:
+        name: oracle
+        uid: 501
+        group: oinstall
+        groups: dba
+      when: oracle_user.rc != 0
+
+    - name: Change ownership of /opt/oracle to oracle:oinstall
+      file:
+        path: /opt/oracle
+        owner: oracle
+        group: oinstall
+        recurse: yes
+        state: directory      
+
+    - name: Create Oracle Inventory Directory
+      file:
+        path: /opt/oracle/oraInventory
+        state: directory
+        owner: oracle
+        group: oinstall
+        mode: '0775'
+
+    - name: Create Oracle Grid Infrastructure Base and Home Directory
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: oracle
+        group: oinstall
+        mode: '0775'
+      loop:
+        - /opt/oracle/product/19.3.0/db
+        - /opt/oracle/product/19.3.0/grid  
+
+    - name: Create Oracle Software directory
+      file:
+        path: /opt/oracle/software/patches
+        state: directory
+        owner: oracle
+        group: oinstall
+        recurse: yes
+        mode: '0777'
+        
+    - name: Add marker to indicate successful of user-directory execution 
+      lineinfile:
+        path: /tmp/oracle_status.txt
+        line: "successful user directory setup execution"
+        create: yes        
+
+  become: yes
+  when: userdir_status is changed and userdir_status.rc != 0   

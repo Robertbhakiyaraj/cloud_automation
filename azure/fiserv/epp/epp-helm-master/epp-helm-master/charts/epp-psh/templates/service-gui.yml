@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{.Values.name}}-gui-service
+  namespace: {{.Values.namespace}}
+  labels:
+    app: {{.Values.name}}
+spec:
+  type: ClusterIP
+  ports:
+  - name: httpswls
+    port: 7001
+    targetPort: 7001
+  - name: external-payments-service
+    port: 18030 #synapse config file
+    targetPort: 18030
+  selector:
+    tier: {{.Values.name}}-gui

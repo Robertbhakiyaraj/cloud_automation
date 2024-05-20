@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config>
+      <!--
+          The configuration file prefix order is important:
+          Values set in the files lower in this list override values set in the files higher in the order
+       -->
+      <ConfigurationFilenamePrefixes>
+          <Prefix>dtconfig-</Prefix>
+          <Prefix>dtconfig-solution-</Prefix>
+          <Prefix>dtconfig-platform-</Prefix>
+          <Prefix>dtconfig-client-</Prefix>
+          <Prefix>dtconfig-environment-</Prefix>
+          <Prefix>dtconfig-test-</Prefix>
+          <Prefix>dtconfig-category-</Prefix>
+      </ConfigurationFilenamePrefixes>
+</config>

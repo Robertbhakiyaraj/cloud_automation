@@ -1,0 +1,33 @@
+SID_LIST_LISTENER =
+  (SID_LIST =
+    (SID_DESC =
+        (GLOBAL_DBNAME = {{primary_db_name}})
+        (ORACLE_HOME = /opt/oracle/product/19.3.0/db)
+        (SID_NAME = {{primary_db_name}})
+     )
+    (SID_DESC =
+        (GLOBAL_DBNAME = {{standby_db_name}})
+        (ORACLE_HOME = /opt/oracle/product/19.3.0/db)
+        (SID_NAME = {{standby_db_name}})
+     )
+    (SID_DESC =
+        (GLOBAL_DBNAME = {{primary_db_name}}_DGMGRL)
+        (ORACLE_HOME = /opt/oracle/product/19.3.0/db)
+        (SID_NAME = {{primary_db_name}})
+        (ENVS="TNS_ADMIN=/opt/oracle/product/19.3.0/grid/network/admin")
+    )
+    (SID_DESC =
+        (GLOBAL_DBNAME = {{standby_db_name}}_DGMGRL)
+        (ORACLE_HOME = /opt/oracle/product/19.3.0/db)
+        (SID_NAME = {{standby_db_name}})
+        (ENVS="TNS_ADMIN=/opt/oracle/product/19.3.0/grid/network/admin")
+    )
+  )
+
+LISTENER =
+ (DESCRIPTION_LIST =
+   (DESCRIPTION =
+     (ADDRESS = (PROTOCOL = TCP)(HOST = {{ primary_hostname }})(PORT = 1521))
+     (ADDRESS = (PROTOCOL = IPC)(KEY = EXTPROC1521))
+   )
+ )

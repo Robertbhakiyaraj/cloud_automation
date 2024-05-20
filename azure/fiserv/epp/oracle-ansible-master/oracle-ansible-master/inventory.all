@@ -1,0 +1,12 @@
+[rhel-oracledb-servers]
+rheloraclevm1 ansible_host=10.155.144.120 ansible_user=azureuser ansible_port=22 ansible_ssh_private_key_file=/home/mobaxterm/.ssh/epp-azure-test.pem 
+rheloraclevm2 ansible_host=10.155.144.121 ansible_user=azureuser ansible_port=22 ansible_ssh_private_key_file=/home/mobaxterm/.ssh/epp-azure-test.pem 
+
+[rhel-observerdb-servers]
+rhelobservervm1 ansible_host=10.155.144.122 ansible_user=azureuser ansible_port=22 ansible_ssh_private_key_file=/home/mobaxterm/.ssh/epp-azure-test.pem 
+
+[primary_server]
+rheloraclevm1 ansible_host=10.155.144.120 ansible_user=azureuser ansible_port=22 ansible_ssh_private_key_file=/home/mobaxterm/.ssh/epp-azure-test.pem 
+
+[standby_server]
+rheloraclevm2 ansible_host=10.155.144.121 ansible_user=azureuser ansible_port=22 ansible_ssh_private_key_file=/home/mobaxterm/.ssh/epp-azure-test.pem 

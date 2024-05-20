@@ -1,0 +1,234 @@
+---
+# tasks file for database-patching
+  - name: Check if marker for successful dbopatch exists in file
+    shell: "grep -i 'successful observer dbopatch execution' /tmp/oracle_status.txt"
+    become: yes    
+    register: dbopatch_observer_status
+    ignore_errors: yes
+
+  - block:
+    - block:
+      - name: Check if marker for successful dbopatch exists in file
+        shell: "grep -i 'successful dbopatch execution' /tmp/oracle_status.txt"
+        register: dbopatch_status
+        ignore_errors: yes
+
+      - name: Apply OPatch in Oracle Home
+        shell: |
+          unzip -q /opt/oracle/software/{{oracle_dbpatch}} -d /opt/oracle/software/patches
+          /opt/oracle/product/19.3.0/db/OPatch/opatch version
+          mv /opt/oracle/product/19.3.0/db/OPatch /opt/oracle/product/19.3.0/db/OPatch-12.2.0.1.17
+          unzip -q /opt/oracle/software/{{database_opatch}} -d /opt/oracle/product/19.3.0/db/
+          chmod 755 -R /opt/oracle/product/19.3.0/db/OPatch
+          chown oracle:oinstall -R /opt/oracle/product/19.3.0/db/OPatch
+          /opt/oracle/product/19.3.0/db/OPatch/opatch version
+        register: db_opatch
+        become_user: oracle
+        when: dbopatch_status is changed and dbopatch_status.rc != 0
+
+      - debug:
+          var: db_opatch
+        when: db_opatch is changed and db_opatch.rc == 0
+
+      - name: Add marker to indicate successful of dbopatch execution
+        lineinfile:
+          path: /tmp/oracle_status.txt
+          line: "successful dbopatch execution"
+          create: yes
+        when: db_opatch is changed and db_opatch.rc == 0
+      
+
+
+    - block:
+      - name: Create dbora_start init script
+        template:
+          src: dbora_start.j2
+          dest: /etc/rc.d/init.d/dbora_start
+          owner: root
+          group: root
+          mode: 0770
+
+      - name: Link dbora_start to rc.0,1 and 2
+        file:
+          src: /etc/rc.d/init.d/dbora_start
+          dest: /etc/rc.d/rc{{item}}.d/ORCLCDBdbora_start
+          state: link
+          owner: root
+          group: root
+          mode: 0770
+        with_items:
+           - 0
+           - 1
+           - 2
+    
+
+    - block:
+      - name: Check if marker for successful dbshutdown exists in file
+        shell: "grep -i 'successful dbshutdown execution' /tmp/oracle_status.txt"
+        register: dbshutdown_status
+        ignore_errors: yes
+
+      - name: Stop the database
+        shell: export ORACLE_BASE={{ oracle_base }}; export ORACLE_HOME={{ oracle_home }}; export ORACLE_SID={{ oracle_sid }}; printf 'SHUTDOWN IMMEDIATE \n' | $ORACLE_HOME/bin/sqlplus sys/gyoFm8AYHsvZm48A as sysdba || die 1 "sqlplus issue"
+        register: dbshutdownstatus
+        become_user: oracle
+        when: dbshutdown_status is changed and dbshutdown_status.rc != 0
+
+      - name: Report DB Shutdown Status
+        debug:
+          var: dbshutdownstatus
+        when: dbshutdownstatus is changed and dbshutdownstatus.rc == 0
+
+      - name: Add marker to indicate successful of dbshutdown execution
+        lineinfile:
+          path: /tmp/oracle_status.txt
+          line: "successful dbshutdown execution"
+          create: yes
+        become: yes  
+        when: dbshutdownstatus is changed and dbshutdownstatus.rc == 0
+
+      - name: Pause for 10 seconds after stopping service
+        pause:
+          seconds: 20
+
+      - name: Check if marker for successful lsnrctlshutdown exists in file
+        shell: "grep -i 'successful lsnrctlshutdown execution' /tmp/oracle_status.txt"
+        register: lsnrctshutdown_status
+        ignore_errors: yes
+
+      - name: Stop the listener service
+        shell: "export ORACLE_HOME={{ oracle_home }}; export JAVA_HOME=$ORACLE_HOME/jdk; export PATH=$ORACLE_HOME/bin:$ORACLE_HOME/jdk/bin:/usr/sbin:/home/oracle/.local/bin:/home/oracle/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin; lsnrctl stop /dev/null; exit 0"
+        register: lsnrshutdownexecution
+        become_user: oracle
+        when: lsnrctshutdown_status is changed and lsnrctshutdown_status.rc != 0
+
+      - name: Report Listener Shutdown Status
+        debug:
+          var: lsnrshutdownexecution
+        when: lsnrshutdownexecution is changed and lsnrshutdownexecution.rc == 0
+
+      - name: Add marker to indicate successful of lsnrctlshutdown execution
+        lineinfile:
+          path: /tmp/oracle_status.txt
+          line: "successful lsnrctlshutdown execution"
+          create: yes
+        when: lsnrshutdownexecution is changed and lsnrshutdownexecution.rc == 0
+
+  
+    - name: Run DB Patch Precheck
+      block:
+        - name: Run DB Patch Precheck using OPatch
+          shell: "{{ oracle_home }}/OPatch/opatch prereq CheckConflictAgainstOHWithDetail -ph {{oracle_psu_patches}}/{{ item.id }}"
+          loop: "{{ patches }}"  
+          register: patchprecheckstatus
+          become_user: oracle
+          ignore_errors: yes
+
+        - name: Report DB Patch Precheck Status
+          debug:
+            var: patchprecheckstatus
+          ignore_errors: yes  
+
+    - name: DBPatch apply
+      block: 
+        - name: Check if marker for successful dbpatchapply exists in file
+          shell: "grep -i 'successful dbpatchapply execution' /tmp/oracle_status.txt"
+          register: dbpatchapply_status
+          ignore_errors: yes
+
+        - name: Run DB patch using OPatch
+          shell: '{{ oracle_home }}/OPatch/opatch apply -silent {{oracle_psu_patches}}/{{ item.id }}'
+          loop: "{{ patches }}" 
+          register: installpatchstatus
+          become_user: oracle 
+          when: dbpatchapply_status is changed and dbpatchapply_status.rc != 0
+
+        - name: Report DB Patch Status
+          debug:
+            var: installpatchstatus
+          when: installpatchstatus is changed and "All items completed" in installpatchstatus.msg 
+
+        - name: Add marker to indicate successful of dbpatchapply execution
+          lineinfile:
+            path: /tmp/oracle_status.txt
+            line: "successful dbpatchapply execution"
+            create: yes
+          when: installpatchstatus is changed and "All items completed" in installpatchstatus.msg
+    
+    - name: Start of Services
+      block: 
+        - name: Start the listener service
+          shell: "export ORACLE_HOME={{ oracle_home }}; export JAVA_HOME=$ORACLE_HOME/jdk; export PATH=$ORACLE_HOME/bin:$ORACLE_HOME/jdk/bin:/usr/sbin:/home/oracle/.local/bin:/home/oracle/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin; lsnrctl start LISTENER /dev/null; exit 0"
+          become_user: oracle 
+          register: lsnrstartupstatus
+
+        - name: Report Listener Starup Status
+          debug:
+            var: lsnrstartupstatus
+
+        - name: Pause for 10 seconds after starting service
+          pause:
+              seconds: 20
+
+    - name: Start of DB Services
+      block: 
+        - name: Start the database
+          shell: export ORACLE_BASE={{ oracle_base }}; export ORACLE_HOME={{ oracle_home }}; export ORACLE_SID={{ oracle_sid }}; export PATH=$ORACLE_HOME/bin:/usr/sbin:/home/oracle/.local/bin:/home/oracle/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin; printf 'STARTUP \n' | sqlplus / as sysdba || die 1 "sqlplus issue"
+          become_user: oracle 
+          register: dbstartupstatus
+
+        - name: Report DB Starup Status
+          debug:
+            var: dbstartupstatus
+
+        - name: Source .bash_profile
+          shell: "source ~/.bash_profile && echo 'Success: .bash_profile sourced'"
+          register: bash_profile_result
+          changed_when: false
+          become_user: oracle
+
+        - name: Print results
+          debug:
+            msg: "{{ item.stdout }}"
+          loop:
+            - "{{ bash_profile_result }}"
+
+    - name: Check if marker for successful datapatchapply exists in file
+      shell: "grep -i 'successful datapatchapply execution' /tmp/oracle_status.txt"
+      register: datapatch_status
+      ignore_errors: yes
+
+    - name: Applying Datapatch
+      block: 
+        - name: Run data patch
+          shell: |
+              export ORACLE_BASE={{ oracle_base }}; export ORACLE_HOME={{ oracle_home }}; export ORACLE_SID={{ oracle_sid }}; export PATH=$ORACLE_HOME/bin:/usr/sbin:/home/oracle/.local/bin:/home/oracle/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin; printf 'alter pluggable database all open; \n' | sqlplus / as sysdba || die 1 "sqlplus issue"
+              printf' \n' | {{ oracle_home }}/OPatch/datapatch -verbose
+          register: datapatchapply
+          become_user: oracle 
+          when: datapatch_status is changed and datapatch_status.rc != 0
+
+        - name: Report Data Patch Status
+          debug:
+            var: datapatchapply
+          when: datapatchapply is changed and datapatchapply.rc == 0  
+
+        - name: Add marker to indicate successful of gridopatchapply execution
+          lineinfile:
+            path: /tmp/oracle_status.txt
+            line: "successful datapatchapply execution"
+            create: yes
+          when: datapatchapply is changed and datapatchapply.rc == 0 
+
+    - name: Report success  
+      debug:
+        msg: "Completed Oracle DB Patch Installation"
+    
+    - name: Add marker to indicate successful observer dbopatch execution execution
+      lineinfile:
+        path: /tmp/oracle_status.txt
+        line: "successful observer dbopatch execution"
+        create: yes
+
+    become: yes  
+    when: dbopatch_observer_status is changed and dbopatch_observer_status.rc != 0

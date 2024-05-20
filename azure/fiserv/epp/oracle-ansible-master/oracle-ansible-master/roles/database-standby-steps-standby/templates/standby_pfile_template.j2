@@ -1,0 +1,30 @@
+*.audit_file_dest='/opt/oracle/admin/{{ standby_db_name }}/adump'
+*.audit_trail='db'
+*.compatible='19.0.0'
+*.control_files= '/u01/{{ standby_db_name }}/controlfile/control01.ctl, /redo/{{ standby_db_name }}/controlfile/control02.ctl'
+*.db_block_size=8192
+*.db_create_file_dest='/u01'
+*.db_name='{{ primary_db_name }}'
+*.db_unique_name='{{ standby_db_name }}'
+*.db_recovery_file_dest='/archive'
+*.db_recovery_file_dest_size=50G
+*.diagnostic_dest='/opt/oracle'
+*.enable_pluggable_database=TRUE
+*.fal_client={{ primary_db_name }}
+*.fal_server={{ standby_db_name }}
+*.dispatchers='(PROTOCOL=TCP) (SERVICE={{ standby_db_name }}XDB)'
+*.log_archive_config='dg_config=({{ standby_db_name }},{{ primary_db_name }})'
+*.log_archive_dest_1='location=use_db_recovery_file_dest valid_for=(all_logfiles,all_roles) db_unique_name={{ standby_db_name }}'
+*.log_archive_dest_2='service={{ primary_db_name }} async valid_for=(online_logfiles,primary_role) db_unique_name={{ primary_db_name }}'
+*.log_archive_dest_state_1='ENABLE'
+*.log_archive_dest_state_2='ENABLE'
+*.log_archive_format='%t_%s_%r.dbf'
+*.nls_language='ENGLISH'
+*.nls_territory='AMERICA'
+*.open_cursors=300
+*.pga_aggregate_target=512M
+*.processes=300
+*.remote_login_passwordfile='EXCLUSIVE'
+*.sga_target=1536M
+*.standby_file_management='AUTO'
+*.undo_tablespace='UNDOTBS1'

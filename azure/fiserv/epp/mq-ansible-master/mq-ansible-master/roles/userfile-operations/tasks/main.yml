@@ -1,0 +1,46 @@
+---
+# tasks file for users and groups creation
+
+- block:
+  - name: Create groups for haclient and mqm if does not exist
+    group:
+      name: "{{ item.group_name }}"
+      gid: "{{ item.gid }}"
+      state: present
+    loop: "{{ mq_users }}"
+      
+  - name: Create users for hacluster and mqm if does not exist
+    user:
+      name: "{{ item.user_name }}"
+      uid: "{{ item.uid }}"
+      group: "{{ item.gid }}"
+      groups: "{{ item.groups }}"
+      state: present
+    loop: "{{ mq_users }}"
+
+  - name: Change owner and group permission for /var/mqm
+    file:
+      path: "{{ item }}"
+      owner: mqm
+      group: mqm
+      recurse: yes
+      state: directory
+    loop:
+      - /var/mqm
+
+  - name: Create groups for MCA if does not exist
+    group:
+      name: "{{ item.group }}"
+      state: present
+    loop: "{{ mca_users }}"
+
+  - name: Create users for MCA if does not exist
+    user:
+      name: "{{ item.user }}"
+      group: "{{ item.group }}"
+      state: present
+    loop: "{{ mca_users }}"
+
+  become: yes
+  
+

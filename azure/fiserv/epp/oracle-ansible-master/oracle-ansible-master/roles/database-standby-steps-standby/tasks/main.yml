@@ -1,0 +1,338 @@
+---
+- name: Check if marker for successful execution of standby steps to creating standby database exists in file
+  shell: "grep -i 'successful standby_steps execution' /tmp/oracle_standbycreation_standby_status.txt"
+  register: standby_steps_status
+  ignore_errors: yes
+  become: yes
+
+- block:
+  - block: 
+    - name: Ensure rman script directory exists
+      stat:
+        path: "{{ oracle_rman_files }}"
+      register: oracle_rman_dir
+
+    - name: Create rman script Directory
+      file:
+        path: "{{ oracle_rman_files }}"
+        state: directory
+        owner: oracle
+        group: oinstall
+        recurse: yes
+        mode: '0755'
+      when: not oracle_rman_dir.stat.exists
+
+    - name: Create Oracle Diag and Audit Directories for new Standby Database {{standby_db_name}}
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: oracle
+        group: oinstall
+        mode: '0775'
+      loop:
+        - /opt/oracle/admin/{{ standby_db_name }}/adump
+        - /opt/oracle/diag/rdbms/{{ standby_db_name }}/{{ standby_db_name }}/cdump
+
+  - block:   
+    - name: Rename old tnsnames.ora and listener.ora files in Standby Oracle Home 
+      shell: |
+        mv /tmp/orapw{{ primary_db_name }} {{ oracle_home }}/dbs/orapw{{ standby_db_name }}
+        chown oracle:oinstall {{ oracle_home }}/dbs/orapw{{ standby_db_name }}
+
+    - name: Rename File in a Directory
+      shell: |
+        mv /tmp/init{{ primary_db_name }}.ora {{ oracle_rman_files }}/init{{ standby_db_name }}.ora
+        chown oracle:oinstall {{ oracle_rman_files }}/init{{ standby_db_name }}.ora
+
+    - name: Create Oracle Parameter File from Template
+      template:
+        src: standby_pfile_template.j2
+        dest: "{{ temp_standby_pfile_path }}"
+        mode: '0644'
+
+    - name: Verify Parameter File Created
+      stat:
+        path: "{{ temp_standby_pfile_path }}"
+      register: pfile_status
+
+    - name: Ensure Parameter File Exists
+      assert:
+        that:
+          - pfile_status.stat.exists
+
+  - block:   
+    - name: Rename old tnsnames.ora and listener.ora files in Oracle Home
+      shell: |
+          mv "{{ oracle_home }}/network/admin/tnsnames.ora" "{{ oracle_home }}/network/admin/tnsnames.orabkp"
+          mv "{{ oracle_home }}/network/admin/listener.ora" "{{ oracle_home }}/network/admin/listener.orabkp"
+      ignore_errors: yes
+
+    - name: Update tnsnames.ora
+      template:
+        src: tnsnames.j2
+        dest: "{{ grid_home }}/network/admin/tnsnames.ora"
+        owner: oracle
+        group: oinstall
+        mode: '0644'
+
+    - name: Update listener.ora
+      template:
+        src: "listener.j2"
+        dest: "{{ grid_home }}/network/admin/listener.ora"
+        owner: oracle
+        group: oinstall
+        mode: '0644'
+
+    - name: Link tnsnames.ora
+      file:
+        src: "{{ grid_home }}/network/admin/tnsnames.ora"
+        dest: "{{ oracle_home }}/network/admin/tnsnames.ora"
+        owner: oracle
+        group: oinstall
+        state: link
+
+    - name: Link listener.ora
+      file:
+        src: "{{ grid_home }}/network/admin/listener.ora"
+        dest: "{{ oracle_home }}/network/admin/listener.ora"
+        owner: oracle
+        group: oinstall
+        state: link
+
+    - name: Restart Listener
+      block: 
+        - name: Check if marker for successful lsnrctlreload exists in file
+          shell: "grep -i 'successful lsnrctlreload execution' /tmp/oracle_standby_steps_standby_status.txt"
+          register: lsnrctlreload_status
+          ignore_errors: yes
+
+        - name: restart the listener service
+          shell: |
+              export ORACLE_HOME={{ oracle_home }}
+              export JAVA_HOME=$ORACLE_HOME/jdk
+              export PATH=$ORACLE_HOME/bin:$ORACLE_HOME/jdk/bin:/usr/sbin:/home/oracle/.local/bin:/home/oracle/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin
+              printf '\n' | lsnrctl reload
+          become_user: oracle 
+          register: lsnrctlreloadstatus
+          when: lsnrctlreload_status is changed and lsnrctlreload_status.rc != 0
+
+        - name: Report Listener Starup Status
+          debug:
+            var: lsnrctlreloadstatus
+          when: lsnrctlreloadstatus is changed and lsnrctlreloadstatus.rc == 0
+
+        - name: Add marker to indicate successful of lsnrctlreload execution
+          lineinfile:
+            path: /tmp/oracle_standby_steps_standby_status.txt
+            line: "successful lsnrctlreload execution"
+            create: yes
+          when: lsnrctlreloadstatus is changed and lsnrctlreloadstatus.rc == 0
+
+  - block:
+    - name: Configure Primary Database for Standby
+      shell: "grep -i 'successful startupnomount execution' /tmp/oracle_standby_steps_standby_status.txt"
+      register: startupnomount_status
+      ignore_errors: yes
+
+    - name: Startup Standby database using spfile
+      shell: |
+          export ORACLE_BASE={{ oracle_base }}
+          export ORACLE_HOME={{ oracle_home }}
+          export ORACLE_SID={{ standby_db_name }}
+          export PATH=$ORACLE_HOME/bin:/usr/sbin:/home/oracle/.local/bin:/home/oracle/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin
+          printf ' \n' |  sqlplus / as sysdba <<EOF
+          create spfile from pfile='{{ temp_standby_pfile_path }}';
+          STARTUP NOMOUNT;
+          EOF
+      register: startupnomount
+      become_user: oracle
+      when: startupnomount_status is changed and startupnomount_status.rc != 0
+
+    - debug:
+        var: startupnomount
+      when: startupnomount is changed and startupnomount.rc == 0
+
+    - name: Add marker to indicate successful creation of Standby Database
+      lineinfile:
+        path: /tmp/oracle_standby_steps_standby_status.txt
+        line: "successful startupnomount execution"
+        create: yes
+      when: startupnomount is changed and startupnomount.rc == 0
+
+  - block:
+    - name: Copy rman command template to Oracle RMAN's script directory
+      template:
+        src: "rman_command.j2"
+        dest: "{{ oracle_rman_files }}/rman_command.cmd"
+        owner: oracle
+        group: oinstall
+        mode: '0644'
+
+  - block:
+    - name: Check if marker for successful create_standby exists in file
+      shell: "grep -i 'successful create_standby execution' /tmp/oracle_standby_steps_standby_status.txt"
+      register: createstandby_status
+      ignore_errors: yes
+
+    - name: Run the RMAN script to create Standby Database
+      shell: |
+          export ORACLE_BASE={{ oracle_base }}
+          export ORACLE_HOME={{ oracle_home }}
+          export ORACLE_SID={{ standby_db_name }}
+          export PATH=$ORACLE_HOME/bin:/usr/sbin:/home/oracle/.local/bin:/home/oracle/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin
+          printf ' \n' | rman target sys/gyoFm8AYHsvZm48A@{{primary_db_name}} cmdfile={{ oracle_rman_files }}/rman_command.cmd log={{ oracle_rman_files }}/rman_stndby_restore.log auxiliary sys/gyoFm8AYHsvZm48A@{{ standby_db_name }}
+      register: create_standby
+      become_user: oracle
+      when: createstandby_status is changed and createstandby_status.rc != 0
+
+    - debug:
+        var: create_standby
+      when: create_standby is changed and create_standby.rc == 0
+
+    - name: Check RMAN Restore for the successful restore exists in file
+      shell : tail -1 {{ oracle_rman_files }}/rman_stndby_restore.log
+      register: check_rman_restore_status
+
+    - set_fact:
+        restore_status : "{{ check_rman_restore_status.stdout }}"
+    
+    - debug:
+        var=restore_status
+
+    - name: Add marker to indicate successful creation of Standby Database
+      lineinfile:
+        path: /tmp/oracle_standbycreation_standby_status.txt
+        line: "successful create_standby execution"
+        create: yes
+      when: create_standby is changed and create_standby.rc == 0 and restore_status == 'Recovery Manager complete.'
+    
+  - block:
+
+    - name: Check if marker for successful oracle service exists in file
+      shell: "grep -i 'successful standby oracle service execution' /tmp/oracle_standbycreation_standby_status.txt"
+      register: oracleservice_status
+      ignore_errors: yes
+
+    - name: Add Standby Database to SRVCTL and create Oracle Service
+      shell: |
+          export ORACLE_BASE={{ oracle_base }}
+          export ORACLE_HOME={{ oracle_home }}
+          export ORACLE_SID={{ standby_db_name }}
+          export PATH=$ORACLE_HOME/bin:/usr/sbin:/home/oracle/.local/bin:/home/oracle/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin
+          printf ' \n' | $ORACLE_HOME/bin/srvctl add database -d {{ standby_db_name }} -o $ORACLE_HOME -p '/opt/oracle/product/19.3.0/db/dbs/spfile{{ standby_db_name }}.ora' -r physical_standby -s mount -y AUTOMATIC
+          printf ' \n' | $ORACLE_HOME/bin/srvctl modify database -d {{ standby_db_name }} -startoption "MOUNT"
+          printf ' \n' | $ORACLE_HOME/bin/srvctl add service -d {{ standby_db_name }} -service {{dg_failover_service}} -pdb {{pdb_name}} -role PRIMARY -failovermethod BASIC -failovertype SELECT -failoverdelay 180 -failoverretry 5
+      register: create_orclservice
+      become_user: oracle
+      when: oracleservice_status is changed and oracleservice_status.rc != 0
+
+    - debug:
+        var: create_orclservice
+      when: create_orclservice is changed and create_orclservice.rc == 0
+
+    - name: Add marker to indicate successful oracle service creation
+      lineinfile:
+        path: /tmp/oracle_standby_steps_standby_status.txt
+        line: "successful standby oracle service execution"
+        create: yes
+      when: create_orclservice is changed and create_orclservice.rc == 0
+
+  - block:
+    - name: Check if marker for successful ClusterStop exists in file
+      shell: "grep -i 'successful ClusterStop execution' /tmp/oracle_standby_steps_standby_status.txt"
+      register: ClusterStop_status
+      ignore_errors: yes
+
+    - name: Stop the Cluster Services
+      shell: export ORACLE_BASE={{ oracle_base }}; export GRID_HOME={{ grid_home }}; printf ' \n' | $GRID_HOME/bin/crsctl stop has || die 1 "crsctl issue"
+      register: ClusterStopstatus
+      when: ClusterStop_status is changed and ClusterStop_status.rc != 0
+
+    - name: Report ClusterStopstatus Status
+      debug:
+        msg: "{{ ClusterStopstatus }}"
+      when: ClusterStopstatus is changed and ClusterStopstatus.rc == 0
+
+    - name: Add marker to indicate successful of ClusterStopstatus execution
+      lineinfile:
+        path: /tmp/oracle_standby_steps_standby_status.txt
+        line: "successful ClusterStop execution"
+        create: yes
+      when: ClusterStopstatus is changed and ClusterStopstatus.rc == 0
+
+    - name: Pause for 20 seconds after stopping service
+      pause:
+        seconds: 20
+
+  - block:
+    - name: Check if marker for successful ClusterStart exists in file
+      shell: "grep -i 'successful ClusterStart execution' /tmp/oracle_standby_steps_standby_status.txt"
+      register: ClusterStart_status
+      ignore_errors: yes
+
+    - name: Start the Cluster Services
+      shell: export ORACLE_BASE={{ oracle_base }}; export GRID_HOME={{ grid_home }}; printf ' \n' | $GRID_HOME/bin/crsctl start has || die 1 "crsctl issue"
+      register: ClusterStartstatus
+      when: ClusterStart_status is changed and ClusterStart_status.rc != 0
+
+    - name: Report ClusterStartstatus Status
+      debug:
+        msg: "{{ ClusterStartstatus }}"
+      when: ClusterStartstatus is changed and ClusterStartstatus.rc == 0
+
+    - name: Add marker to indicate successful of ClusterStartstatus execution
+      lineinfile:
+        path: /tmp/oracle_standby_steps_standby_status.txt
+        line: "successful ClusterStart execution"
+        create: yes
+      when: ClusterStartstatus is changed and ClusterStartstatus.rc == 0
+
+    - name: Pause for 20 seconds after stopping service
+      pause:
+        seconds: 20
+
+  - name: Start Managed Recovery
+    block:
+      - name: Check if marker for successful mrp process started
+        shell: ps -ef | grep mrp | grep -v grep | grep {{standby_db_name}} | cut -d_ -f3
+        register: check_mrp_status
+
+      - set_fact:
+          mrp_status : "{{ check_mrp_status.stdout }}"
+      
+      - debug: 
+          var=mrp_status
+
+      - name: Run the RMAN script to start MRP Background Process
+        shell: |
+            export ORACLE_BASE={{ oracle_base }}
+            export ORACLE_HOME={{ oracle_home }}
+            export ORACLE_SID={{ standby_db_name }}
+            export PATH=$ORACLE_HOME/bin:/usr/sbin:/home/oracle/.local/bin:/home/oracle/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin
+            printf ' \n' |  sqlplus sys/gyoFm8AYHsvZm48A as sysdba <<EOF
+            ALTER DATABASE FLASHBACK ON;
+            ALTER DATABASE RECOVER MANAGED STANDBY DATABASE DISCONNECT NODELAY;
+            EOF
+        register: mrp_bg_process
+        become_user: oracle
+        when: mrp_status == ''
+
+      - debug:
+          var: mrp_bg_process
+        when: mrp_bg_process is changed and mrp_bg_process.rc == 0
+
+      - name: Add marker to indicate successful MRP PROCESS execution
+        lineinfile:
+          path: /tmp/oracle_standby_steps_standby_status.txt
+          line: "successful MRP PROCESS execution"
+          create: yes
+        when: mrp_bg_process is changed and mrp_bg_process.rc == 0
+
+      - name: Add marker to indicate successful MRP PROCESS execution
+        lineinfile:
+          path: /tmp/oracle_standby_steps_standby_status.txt
+          line: "successful standby_steps execution"
+          create: yes
+        when: mrp_bg_process is changed and mrp_bg_process.rc == 0
+
+  become: yes

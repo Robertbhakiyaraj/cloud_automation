@@ -1,0 +1,55 @@
+---
+- name: tasks to get the disk and partition related configuration automatically
+  hosts: rhel-autosys-servers
+  tasks:  
+    - block:
+      - name: Get vg_extra partition name
+        shell: "pvscan | awk '/vg_extra/ {print $2}'"
+        register: vg_partition_info   
+
+      - name: Form variable for vg_extra partition
+        set_fact:
+          vg_part_info: "{{ vg_partition_info.stdout }}" 
+
+      - name: Debug vg_part_info variable
+        debug:
+          var: vg_part_info
+
+      - name: Get vg_extra partition name
+        shell: pvscan | awk '/vg_extra/ {gsub(/[0-9]/,"",$2); print $2}'
+        register: vg_partition_name 
+
+      - name: Form variable for vg_extra partition name
+        set_fact:
+          vg_part_name: "{{ vg_partition_name.stdout }}"      
+
+      - name: Debug vg_part_name variable
+        debug:
+          var: vg_part_name               
+
+      - name: Get vg_extra partition number
+        shell: pvscan | awk '/vg_extra/ {gsub(/[^0-9]/,"",$2); print $2}'
+        register: vg_partition_number  
+
+      - name: Form variable for vg_extra partition number
+        set_fact:
+          vg_part_number: "{{ vg_partition_number.stdout }}"      
+
+      - name: Debug vg_part_number variable
+        debug:
+          var: vg_part_number         
+
+      become: yes  
+
+
+- name: Playbook to install the autosys agent and control-m system requirements
+  hosts: rhel-autosys-servers
+  vars_files:
+    - vars.yml
+  roles:
+    - grow-partition-operations
+    - osdisk-operations   
+    - reboot  
+    - controlm-requirements
+    - autosys-agent
+

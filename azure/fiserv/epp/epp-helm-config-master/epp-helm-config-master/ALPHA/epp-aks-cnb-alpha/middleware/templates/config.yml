@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{.Values.name}}-configmap
+  labels:
+    app: {{.Values.name}}
+data:
+  CLIENT: {{.Values.client | quote}}
+  JMS_PROVIDER: "LOCAL"  # can be LOCAL or MQ.
+  Q5DataSourceURL: {{.Values.q5DataSourceURL}}
+  PSH_CONTEXT_ROOT: "{{ .Values.obfuscatedContextRoot }}/PSH"
+  XMS_VALUE: "2g"
+  XMX_VALUE: "4g"
+  MQ_JVM_OPTIONS: "" #No mqm crypto needed for mqm container.

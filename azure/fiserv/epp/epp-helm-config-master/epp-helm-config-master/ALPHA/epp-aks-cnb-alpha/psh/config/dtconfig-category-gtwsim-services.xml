@@ -1,0 +1,39 @@
+<?xml version = "1.0" encoding = "ISO-8859-1"?>
+<config>
+<dovetailManagement>
+  <managedInstance scope="name" scope-value="ACRJMSGateway"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+  <managedInstance scope="name" scope-value="AdvisingGateway"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+  <managedInstance scope="name" scope-value="BnrJMSGateway"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+  <managedInstance scope="name" scope-value="FXConnectorWebServiceGateway"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+  <managedInstance scope="name" scope-value="FXFileIOGateway"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+  <managedInstance scope="name" scope-value="FXRGateway"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+  <managedInstance scope="name" scope-value="FedGateway"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+  <managedInstance scope="name" scope-value="GCRGateway"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+  <managedInstance scope="name" scope-value="GFCGateway"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+  <managedInstance scope="name" scope-value="OFCGateway"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+  <managedInstance scope="name" scope-value="OFCNonPaymentGateway"><enabled>true</enabled><runOnStartup>false</runOnStartup></managedInstance>
+  <managedInstance scope="name" scope-value="RFAGateway"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+  <managedInstance scope="name" scope-value="RFANonPaymentGateway"><enabled>true</enabled><runOnStartup>false</runOnStartup></managedInstance>
+  <managedInstance scope="name" scope-value="SWIFTCancelAmmendGateway_US"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+  <managedInstance scope="name" scope-value="SWIFTGateway_US"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+  <managedInstance scope="name" scope-value="SWIFTWebServiceGateway"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+  <managedInstance scope="name" scope-value="USZBCGateway"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+  <managedInstance scope="name" scope-value="US_FedClientFileGatewayService"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+  <managedInstance scope="name" scope-value="US_ISO20022BulkMessageGateway"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+  <managedInstance scope="name" scope-value="US_ISO20022BulkMqFileSimulator"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+  <managedInstance scope="name" scope-value="US_ISO20022FileIOGateway"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+  <managedInstance scope="name" scope-value="US_NACHAFileIOGateway"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+  <managedInstance scope="name" scope-value="WmqFileFedSimulator"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+  <managedInstance scope="name" scope-value="EnvironmentCheck"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+  <managedInstance scope="name" scope-value="DynamicLog4J"><enabled>true</enabled><runOnStartup>true</runOnStartup></managedInstance>
+  <managedInstance scope="name" scope-value="TDS_ObjectCacheMonitor">
+    <service>ObjectCacheMonitorService</service>
+    <startSequence>11</startSequence>
+    <enabled>true</enabled>
+    <runOnStartup>true</runOnStartup>
+    <parameters>
+      <parameter>TDS</parameter>
+    </parameters>
+  </managedInstance>
+</dovetailManagement>
+</config>

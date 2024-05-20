@@ -1,0 +1,34 @@
+---
+
+# tasks file for logical volume creation , directory creation, file system format and file mount
+- name: Check if marker for successful additional disk file system mount for mq server
+  shell: "grep -i 'successful file system mount for additional disk mq' /tmp/fs_status.txt"
+  register: additional_disk_mq_filesystem_mount_check
+  become: yes
+  ignore_errors: yes
+
+- block:
+    - name: Check if volume groups exist
+      shell: "vgs --noheadings | awk '{ print $1 }' | grep drbdpool"
+      register: vg_check
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Create volume groups
+      lvg:
+        vg: "drbdpool"
+        pvs: "{{ add_disk_info }}"
+      when: vg_check is failed
+
+    - name: Add marker to indicate successful file system mount for additional disk mq server
+      lineinfile:
+        path: /tmp/fs_status.txt
+        line: "successful file system mount for additional disk mq"
+        create: yes
+
+  become: yes
+  when: additional_disk_mq_filesystem_mount_check is changed and additional_disk_mq_filesystem_mount_check.rc != 0
+
+    
+
+

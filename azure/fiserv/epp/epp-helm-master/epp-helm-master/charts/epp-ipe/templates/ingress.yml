@@ -1,0 +1,26 @@
+# https://avinetworks.com/docs/latest/datascript-avi-http-replace_header/
+# Header WLS_PROXY_SSL needs to be manually set for the ingress in the AVI system
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{.Values.name}}-gui-ingress
+  namespace: {{.Values.namespace}}
+  labels:
+    app: {{.Values.name}}
+spec:
+  ingressClassName: webapprouting.kubernetes.azure.com
+  rules:
+    - host: {{.Values.namespace}}-ipe.btat2.azure.epp.banksol.onefiserv.net
+      http:
+        paths:
+          - backend:
+              service:
+                name: {{.Values.name}}-gui-service
+                port:
+                  number: 7001
+            path: /
+            pathType: Prefix
+  tls:
+    - hosts:
+        - {{.Values.namespace}}.btat2.azure.epp.banksol.onefiserv.net
+      secretName: {{.Values.name}}-tls-secret

@@ -1,0 +1,90 @@
+---
+# tasks file for database-patching
+- block:
+
+  - name: Check if marker for successful dbopatch exists in file
+    shell: "grep -i 'successful dbopatch execution' /tmp/oracle_status.txt"
+    register: dbopatch_status
+    become: yes
+    ignore_errors: yes
+
+  - block:
+    - name: Apply OPatch in Oracle Home
+      shell: |
+        unzip -q /opt/oracle/software/{{oracle_dbpatch}} -d /opt/oracle/software/patches
+        /opt/oracle/product/19.3.0/db/OPatch/opatch version
+        mv /opt/oracle/product/19.3.0/db/OPatch /opt/oracle/product/19.3.0/db/OPatch-12.2.0.1.17
+        unzip -q /opt/oracle/software/{{database_opatch}} -d /opt/oracle/product/19.3.0/db/
+        chmod 755 -R /opt/oracle/product/19.3.0/db/OPatch
+        chown oracle:oinstall -R /opt/oracle/product/19.3.0/db/OPatch
+        /opt/oracle/product/19.3.0/db/OPatch/opatch version
+      register: db_opatch
+
+    - debug:
+        var: db_opatch
+      when: db_opatch is changed and db_opatch.rc == 0
+
+    - name: Add marker to indicate successful of dbopatch execution
+      lineinfile:
+        path: /tmp/oracle_status.txt
+        line: "successful dbopatch execution"
+        create: yes
+      become_user: root  
+      when: db_opatch is changed and db_opatch.rc == 0
+
+    become_user: oracle
+    when: dbopatch_status is changed and dbopatch_status.rc != 0
+
+  - name: Check if marker for successful gridopatch exists in file
+    shell: "grep -i 'successful gridopatch execution' /tmp/oracle_status.txt"
+    register: gridopatch_status
+    ignore_errors: yes
+
+  - block:
+    - name: Apply OPatch in Grid Home
+      shell: |
+        /opt/oracle/product/19.3.0/grid/OPatch/opatch version
+        mv /opt/oracle/product/19.3.0/grid/OPatch /opt/oracle/product/19.3.0/grid/OPatch-12.2.0.1.17
+        unzip -q /opt/oracle/software/{{grid_opatch}} -d /opt/oracle/product/19.3.0/grid/
+        chmod 755 -R /opt/oracle/product/19.3.0/grid/OPatch
+        chown oracle:oinstall -R /opt/oracle/product/19.3.0/grid/OPatch
+        /opt/oracle/product/19.3.0/grid/OPatch/opatch version
+      register: grid_opatch
+
+    - debug:
+        var: grid_opatch
+      when: grid_opatch is changed and grid_opatch.rc == 0
+
+
+    - name: Add marker to indicate successful of gridopatch execution
+      lineinfile:
+        path: /tmp/oracle_status.txt
+        line: "successful gridopatch execution"
+        create: yes
+      become_user: root  
+      when: grid_opatch is changed and grid_opatch.rc == 0
+
+    when: gridopatch_status is changed and gridopatch_status.rc != 0
+
+  - name: Check if marker for successful gridopatchapply exists in file
+    shell: "grep -i 'successful gridopatchapply execution' /tmp/oracle_status.txt"
+    register: gridopatchapply_status
+    ignore_errors: yes
+
+  - name: Apply patch in Grid Home
+    shell: /opt/oracle/product/19.3.0/grid/OPatch/opatchauto apply {{oracle_psu_patches}}
+    register:  gridopatchapply_results
+    when: gridopatchapply_status is changed and gridopatchapply_status.rc != 0
+
+  - debug:
+      var: gridopatchapply_results
+    when: gridopatchapply_results is changed and gridopatchapply_results.rc == 0      
+
+  - name: Add marker to indicate successful of gridopatchapply execution
+    lineinfile:
+      path: /tmp/oracle_status.txt
+      line: "successful gridopatchapply execution"
+      create: yes
+    when: gridopatchapply_results is changed and gridopatchapply_results.rc == 0
+
+  become: yes

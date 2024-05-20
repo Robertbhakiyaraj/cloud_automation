@@ -1,0 +1,8 @@
+---
+# defaults file for database-creation
+oracle_base: /opt/oracle
+oracle_home: "{{ oracle_base }}/product/19.3.0/db"
+oracle_sid: ORCLCDB
+oraclecharset: "AL32UTF8"
+oraclenls_charset: "AL16UTF16"
+run_sqlplus: "ORACLE_BASE={{ oracle_base }} ORACLE_HOME={{ oracle_home }} LD_LIBRARY_PATH={{ oracle_home }}/lib {{ oracle_home }}/bin/sqlplus "

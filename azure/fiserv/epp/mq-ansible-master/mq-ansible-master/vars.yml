@@ -1,0 +1,31 @@
+---
+#MQ File system requirements 
+mq_specs:
+  - { lv: "optmqm", size: "20g", path: '/opt/mqm', owner: 'mqm', group: 'mqm', mode: '0755' }
+  - { lv: "varmqm", size: "50g", path: '/var/mqm', owner: 'mqm', group: 'mqm', mode: '0755' }
+  - { lv: "mqmtrace", size: "20g", path: '/var/mqm/trace', owner: 'mqm', group: 'mqm', mode: '0755' }
+  - { lv: "mqmerror", size: "20g", path: '/var/mqm/errors', owner: 'mqm', group: 'mqm', mode: '0755' }
+  - { lv: "mqmlog", size: "30g", path: '/var/mqm/log', owner: 'mqm', group: 'mqm', mode: '0755' }
+  - { lv: "tmpinstalllv", size: "20g", path: '/tmpinstalllv', owner: 'root', group: 'root', mode: '0755' }
+
+#Additional Disk Size in GB
+drbdpool_size : 210
+
+# MQ users setup
+mq_users:
+  - { group_name: "haclient" , user_name: "hacluster", uid: "189", gid: "189", groups: ["haclient"] }
+  - { group_name: "mqm", user_name: "mqm", uid: "307", gid: "307", groups: ["mqm", "haclient"] }
+  
+#MCA Users setup
+mca_users:
+  - { group: "idpp", user: "idpp" }
+  - { group: "idppmqcctr", user: "idppmqcctr" }
+  - { group: "idppmqfcrm", user: "idppmqfcrm" }
+  - { group: "idppmqsjrb", user: "idppmqsjrb" }
+  - { group: "frmsviewer", user: "frmsviewer" }
+  - { group: "idppmqesf",  user: "idppmqesf" }
+  - { group: "dppviewer",  user: "dppviewer" }
+
+
+
+

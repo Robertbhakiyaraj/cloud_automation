@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{.Values.name}}-configmap
+  labels:
+    app: {{.Values.name}}
+data:
+  CLIENT: {{.Values.client | quote}}
+  JMS_PROVIDER: "MQ"  # can be LOCAL or MQ.
+  Q5DataSourceURL: {{.Values.q5DataSourceURL}}
+  PSH_CONTEXT_ROOT: ""
+  XMS_VALUE: "2g"
+  XMX_VALUE: "3g"
+  MQ_JVM_OPTIONS: "" #No mqm crypto needed for mqm container.
+  WL_JVM_OPTIONS: "  -Dweblogic.MaxMessageSize=50000000 -Duser.timezone=America/New_York -Dweblogic.StdoutDebugEnabled=false -Dfile.encoding=UTF8 -Dclient.encoding.override=UTF-8 -Dweblogic.ServerLifeCycleTimeoutVal=210 -Dweblogic.oif.serialFilterMode=disable -XX:+UseParallelGC -XX:+UseParallelOldGC"

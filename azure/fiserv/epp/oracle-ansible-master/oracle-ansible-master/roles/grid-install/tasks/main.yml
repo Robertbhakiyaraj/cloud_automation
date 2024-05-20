@@ -1,0 +1,277 @@
+# tasks file for grid-install
+- block:
+  - block:
+    - name: Execute sshUserSetup.sh script if exists
+      shell: /opt/oracle/product/19.3.0/grid/deinstall/sshUserSetup.sh -user oracle -hosts "oracleprim oraclestdby" -noPromptPassphrase -confirm -advanced
+      register: sshUserSetup
+      #failed_when: sshUserSetup.rc != 0
+      ignore_errors: yes
+
+    - name: Check if response file exists
+      stat:
+        path: /opt/oracle/product/19.3.0/grid/install/response/gridsetup.rsp
+      register: rsp_file
+
+    - name: Take backup of response file if it exists
+      command: cp -prf /opt/oracle/product/19.3.0/grid/install/response/gridsetup.rsp /opt/oracle/product/19.3.0/grid/install/response/gridsetup.rsp.bkp
+      when: rsp_file.stat.exists
+
+    - name: Modify response file
+      lineinfile:
+        path: /opt/oracle/product/19.3.0/grid/install/response/gridsetup.rsp
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+      loop:
+        - { regexp: '^INVENTORY_LOCATION=', line: 'INVENTORY_LOCATION=/opt/oracle/oraInventory' }
+        - { regexp: '^oracle.install.option=', line: 'oracle.install.option=CRS_SWONLY' }
+        - { regexp: '^ORACLE_BASE=', line: 'ORACLE_BASE=/opt/oracle' }
+        - { regexp: '^oracle.install.asm.OSDBA=', line: 'oracle.install.asm.OSDBA=oinstall' }
+        - { regexp: '^oracle.install.asm.OSOPER=', line: 'oracle.install.asm.OSOPER=oinstall' }
+        - { regexp: '^oracle.install.asm.OSASM=', line: 'oracle.install.asm.OSASM=oinstall' }
+        - { regexp: '^oracle.install.crs.config.scanType=', line: 'oracle.install.crs.config.scanType=LOCAL_SCAN' }
+        - { regexp: '^oracle.install.crs.config.ClusterConfiguration=', line: 'oracle.install.crs.config.ClusterConfiguration=STANDALONE' }
+        - { regexp: '^oracle.install.crs.config.configureAsExtendedCluster=', line: 'oracle.install.crs.config.configureAsExtendedCluster=false' }
+        - { regexp: '^oracle.install.crs.config.gpnp.configureGNS=', line: 'oracle.install.crs.config.gpnp.configureGNS=false' }
+        - { regexp: '^oracle.install.crs.config.autoConfigureClusterNodeVIP=', line: 'oracle.install.crs.config.autoConfigureClusterNodeVIP=false' }
+        - { regexp: '^oracle.install.crs.config.gpnp.gnsOption=', line: 'oracle.install.crs.config.gpnp.gnsOption=CREATE_NEW_GNS' }
+        - { regexp: '^oracle.install.crs.configureGIMR=', line: 'oracle.install.crs.configureGIMR=false' }
+        - { regexp: '^oracle.install.asm.configureGIMRDataDG=', line: 'oracle.install.asm.configureGIMRDataDG=false' }
+      when: rsp_file.stat.exists
+
+    - name: Copy .bash_profile template to Oracle user's home directory
+      template:
+        src: "bash_profile.j2"
+        dest: "/home/oracle/.bash_profile"
+        owner: oracle
+        group: oinstall
+        mode: "0644"
+
+
+    - name: Source .bash_profile
+      shell: "source ~/.bash_profile && echo 'Success: .bash_profile sourced'"
+      register: bash_profile_result
+      changed_when: false
+
+    - name: Copy grid_env template to Oracle user's home directory
+      template:
+        src: "grid_env.j2"
+        dest: "/home/oracle/grid_env"
+        owner: oracle
+        group: oinstall
+        mode: "0644"
+
+    - name: Execute grid_env
+      shell: "source ~/grid_env && echo 'Success: grid_env executed'"
+      register: grid_env_result
+      changed_when: false
+      when: bash_profile_result.rc == 0
+
+    - name: Print results
+      debug:
+        msg: "{{ item.stdout }}"
+      loop:
+        - "{{ bash_profile_result }}"
+        - "{{ grid_env_result }}"
+
+    - name: Run Cluster Verification Utility (CVU) as oracle user
+      shell: |
+        export CV_ASSUME_DISTID=RHEL8.0
+        /opt/oracle/product/19.3.0/grid/runcluvfy.sh stage -pre hacfg -verbose
+      register: cvu_output
+      ignore_errors: yes
+    become_user: oracle 
+
+  - name: Check if grid installation exists in file
+    shell: "grep -i 'successful install execution for grid' /tmp/oracle_status.txt"
+    register: grid_install_check
+    become: yes
+    ignore_errors: yes   
+
+  - block:
+    - name: Install Grid software
+      shell: |
+        export CV_ASSUME_DISTID=RHEL8.0
+        /opt/oracle/product/19.3.0/grid/gridSetup.sh -silent -noconfig -ignorePrereqFailure -responseFile /opt/oracle/product/19.3.0/grid/install/response/gridsetup.rsp
+      register: grid_output
+      become_user: oracle
+      ignore_errors: yes
+
+    - name: Add marker to indicate successful grid install execution
+      lineinfile:
+        path: /tmp/oracle_status.txt
+        line: "successful install execution for grid"
+        create: yes
+      when: "'successfully setup software' in grid_output.stdout.lower()"  
+
+    - debug:
+        var: grid_output
+        
+    when: grid_install_check is changed and grid_install_check.rc != 0   
+
+  - name: Check if grid installation exists in file
+    shell: "grep -i 'successful install execution for grid' /tmp/oracle_status.txt"
+    register: after_grid_install_check
+    ignore_errors: yes       
+
+  - block:  
+      
+      - name: Check if successful execution for orainstroot exists in file
+        shell: "grep -i 'successful execution for orainstroot' /tmp/oracle_status.txt"
+        register: orainstroot_output
+        ignore_errors: yes         
+
+      - name: Execute oraInventory root script
+        shell: /opt/oracle/oraInventory/orainstRoot.sh
+        register: ora_inst_root
+        when: orainstroot_output is changed and orainstroot_output.rc != 0
+
+      - debug:
+          var: ora_inst_root 
+        when: ora_inst_root is changed and ora_inst_root.rc == 0     
+
+      - name: Add marker to indicate successful execution for orainstroot
+        lineinfile:
+          path: /tmp/oracle_status.txt
+          line: "successful execution for orainstroot"
+          create: yes    
+        when: ora_inst_root is changed and ora_inst_root.rc == 0    
+
+
+      - name: Check if successful execution for gridrootscript exists in file
+        shell: "grep -i 'successful execution for gridrootscript' /tmp/oracle_status.txt"
+        register: gridrootscript_output
+        ignore_errors: yes
+        when: ora_inst_root is changed and ora_inst_root.rc == 0              
+
+      - name: Execute grid root script
+        shell: /opt/oracle/product/19.3.0/grid/root.sh
+        register: root_script
+        when:  gridrootscript_output is changed and  gridrootscript_output.rc != 0
+
+      - debug:
+          var: root_script
+        when: root_script is changed and root_script.rc == 0
+
+      - name: Add marker to indicate successful execution for gridrootscript
+        lineinfile:
+          path: /tmp/oracle_status.txt
+          line: "successful execution for gridrootscript"
+          create: yes    
+        when: root_script is changed and root_script.rc == 0        
+
+      - name: Check if successful execution for crsrootscript exists in file
+        shell: "grep -i 'successful execution for crsrootscript' /tmp/oracle_status.txt"
+        register: crsrootscript_output
+        ignore_errors: yes
+        when: root_script is changed and root_script.rc == 0      
+
+      - name: Execute crs root script
+        shell: /opt/oracle/product/19.3.0/grid/crs/install/roothas.sh
+        register: has_root
+        when: crsrootscript_output is changed and  crsrootscript_output.rc != 0
+
+      - debug:
+          var: has_root
+        when: has_root is changed and has_root.rc == 0 
+
+      - name: Add marker to indicate successful execution for crsrootscript
+        lineinfile:
+          path: /tmp/oracle_status.txt
+          line: "successful execution for crsrootscript"
+          create: yes    
+        when: has_root is changed and has_root.rc == 0
+
+
+      - name: Check if successful execution for runinstallerscript exists in file
+        shell: "grep -i 'successful execution for runinstallerscript' /tmp/oracle_status.txt"
+        register: runinstallerscript_output
+        ignore_errors: yes
+        when: has_root is changed and has_root.rc == 0
+
+      - name: Finish grid installations as oracle user
+        shell: /opt/oracle/product/19.3.0/grid/oui/bin/runInstaller -updateNodeList ORACLE_HOME=/opt/oracle/product/19.3.0/grid -defaultHomeName CLUSTER_NODES=CRS=TRUE
+        become_user: oracle
+        register: updatenode_list
+        when: runinstallerscript_output is changed and  runinstallerscript_output.rc != 0
+
+      - debug:
+          var: updatenode_list
+        when: updatenode_list is changed and updatenode_list.rc == 0       
+
+      - name: Add marker to indicate successful execution for runinstallerscript
+        lineinfile:
+          path: /tmp/oracle_status.txt
+          line: "successful execution for runinstallerscript"
+          create: yes    
+        when: updatenode_list is changed and updatenode_list.rc == 0         
+            
+
+      - name: Check if successful execution for netcascript exists in file
+        shell: "grep -i 'successful execution for netcascript' /tmp/oracle_status.txt"
+        register: netcascript_output
+        ignore_errors: yes
+        when: updatenode_list is changed and updatenode_list.rc == 0   
+
+      - name: Configure network as oracle user
+        shell: /opt/oracle/product/19.3.0/grid/bin/netca -silent -responseFile /opt/oracle/product/19.3.0/grid/network/install/netca_typ.rsp
+        become_user: oracle
+        register: netca_response
+        when: netcascript_output is changed and  netcascript_output.rc != 0
+
+      - debug:
+          var: netca_response
+        when: netca_response is changed and netca_response.rc == 0  
+
+      - name: Add marker to indicate successful execution for netcascript
+        lineinfile:
+          path: /tmp/oracle_status.txt
+          line: "successful execution for netcascript"
+          create: yes    
+        when: netca_response is changed and netca_response.rc == 0       
+
+      - name: Check if successful execution for crsctlscript exists in file
+        shell: "grep -i 'successful execution for crsctlscript' /tmp/oracle_status.txt"
+        register: crsctlscript_output
+        ignore_errors: yes
+        when: netca_response is changed and netca_response.rc == 0    
+
+      - name: Modify resource attributes as oracle user
+        shell: /opt/oracle/product/19.3.0/grid/bin/crsctl modify resource "ora.cssd" -attr "AUTO_START=1" -unsupported
+        become_user: oracle
+        register: ora_cssd
+        when: crsctlscript_output is changed and crsctlscript_output.rc != 0
+
+      - debug:
+          var: ora_cssd 
+        when: ora_cssd is changed and ora_cssd.rc == 0     
+
+      - name: Add marker to indicate successful execution for crsctlscript
+        lineinfile:
+          path: /tmp/oracle_status.txt
+          line: "successful execution for crsctlscript"
+          create: yes    
+        when: ora_cssd is changed and ora_cssd.rc == 0   
+
+      - block:
+          - name: Check cluster installation status as oracle user
+            shell: /opt/oracle/product/19.3.0/grid/bin/crsctl stat res -init -t
+            register: crs_status  
+
+          - debug:
+                var: crs_status   
+
+          - name: Stop and start HAS service as oracle user
+            shell: |
+              /opt/oracle/product/19.3.0/grid/bin/crsctl stop has
+              /opt/oracle/product/19.3.0/grid/bin/crsctl start has
+              /opt/oracle/product/19.3.0/grid/bin/crsctl stat res -init -t
+            register: stop_start_grid
+
+          - debug:
+              var: stop_start_grid
+        ignore_errors: yes      
+
+
+    when: after_grid_install_check is changed and after_grid_install_check.rc == 0             
+
+  become: yes

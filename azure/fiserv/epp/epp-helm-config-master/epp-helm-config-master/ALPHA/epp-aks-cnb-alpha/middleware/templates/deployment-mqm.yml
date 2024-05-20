@@ -1,0 +1,192 @@
+{{- if eq true .Values.mqm.deploy }}
+# IBM mq container documentation
+# https://github.com/ibm-messaging/mq-helm/tree/main/charts/ibm-mq
+# https://github.com/ibm-messaging/mq-container/tree/master
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+   name: {{.Values.name}}-mqm
+   namespace: {{.Values.namespace}}
+   labels:
+      app: {{.Values.name}}
+spec:
+   selector:
+      matchLabels:
+        app: {{.Values.name}}-mqm
+        tier: {{.Values.name}}-mqm
+   replicas: 1
+   template:
+      metadata:
+         labels:
+            app: {{.Values.name}}-mqm
+            tier: {{.Values.name}}-mqm
+      spec:
+         serviceAccountName: bank-aks-sa
+         imagePullSecrets: {{ toYaml .Values.imagePullSecret | nindent 9 }}
+         containers:
+         -  name: mqm
+            image: docker.artifactory.bank.onefiserv.net/epp/ibm-messaging/mq:latest
+            resources:
+             limits:
+               cpu: 1
+               memory: "2048Mi"
+            env:
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: MQ_QMGR_NAME
+              value: PKSNSMQ
+            - name: LICENSE
+              value: accept
+            - name: MQSNOAUT
+              value: "yes"
+            - name: MQ_DEV
+              value: "false"
+            ports:
+            - containerPort: 1414
+            volumeMounts:
+            - name: gatewaydir
+              mountPath: "/etc/mqm/20-jmsqueues.mqsc"
+              subPath: {{.Values.nfsGatewaySubPath}}/mqm/20-jmsqueues.mqsc
+            - name: qmgr-addini
+              mountPath: "/etc/mqm/qmgr-add.ini"
+              subPath: qmgr-add.ini
+
+         initContainers:
+           - name: psh-init
+             image: {{.Values.image.psh}}
+             command:
+               - sh
+               - -c
+               - |
+                 echo "------------------------------------------------"
+                 echo "Copying DPSApp jms files to shared directory ..."
+                 mkdir -p /opt/epp/gateway/mqm-init/PSH/queue
+                 # some clients have their own jmsqueues.txt file
+                 if [ -f /u01/oracle/shared/clients/{{.Values.client}}/init-config/jmsqueues.txt ]; then
+                   echo "Copying client specific file: /u01/oracle/shared/clients/{{.Values.client}}/init-config/jmsqueues.txt"
+                   cp -v /u01/oracle/shared/clients/{{.Values.client}}/init-config/jmsqueues.txt /opt/epp/gateway/mqm-init/PSH/queue
+                 else
+                   cp -v /u01/oracle/shared/init-config/jmsqueues.txt /opt/epp/gateway/mqm-init/PSH/queue
+                 fi
+                 cp -v /u01/oracle/shared/init-config/jmstopics.txt /opt/epp/gateway/mqm-init/PSH/queue
+                 echo "" >> /opt/epp/gateway/mqm-init/PSH/queue/jmstopics.txt
+                 ls /opt/epp/gateway/mqm-init/PSH/queue
+                 echo "Finished psh-init container execution"
+                 echo "-------------------------------------"
+
+             volumeMounts:
+               - name: gatewaydir
+                 mountPath: "/opt/epp/gateway"
+                 subPath: {{.Values.nfsGatewaySubPath}}
+{{- if eq true .Values.app.ipe }}
+           - name: ipe-init
+             image: {{.Values.image.ipe}}
+             command:
+               - sh
+               - -c
+               - |
+                 echo "------------------------------------------------"
+                 echo "Copying DPSApp jms files to shared directory ..."
+                 mkdir -p /opt/epp/gateway/mqm-init/IPE/queue
+                 # some clients have their own jmsqueues.txt file
+                 if [ -f /u01/oracle/shared/clients/{{.Values.client}}/init-config/jmsqueues.txt ]; then
+                   echo "Copying client specific file: /u01/oracle/shared/clients/{{.Values.client}}/init-config/jmsqueues.txt"
+                   cp /u01/oracle/shared/clients/{{.Values.client}}/init-config/jmsqueues.txt /opt/epp/gateway/mqm-init/IPE/queue
+                 else
+                   cp /u01/oracle/shared/init-config/jmsqueues.txt /opt/epp/gateway/mqm-init/IPE/queue
+                 fi
+                 cp -v /u01/oracle/shared/init-config/jmsXAQueueConnectionFactories.txt /opt/epp/gateway/mqm-init/IPE/queue
+                 cp -v /u01/oracle/shared/init-config/jmsQueueConnectionFactories.txt /opt/epp/gateway/mqm-init/IPE/queue
+                 cp -v /u01/oracle/shared/init-config/jmsXATopicConnectionFactories.txt /opt/epp/gateway/mqm-init/IPE/queue
+                 cp -v /u01/oracle/shared/init-config/jmsTopicConnectionFactories.txt /opt/epp/gateway/mqm-init/IPE/queue
+                 cp -v /u01/oracle/shared/init-config/jmsqueuesForeignServer_IPE_to_PSH.txt /opt/epp/gateway/mqm-init/IPE/queue
+                 
+                 echo "GFCResponseMessageReceiveQueue:dovetail/jms/GFCResponseMessageReceiveQueue" >> /opt/epp/gateway/mqm-init/IPE/queue/jmsqueuesForeignServer_IPE_to_PSH.txt
+                 echo "OFCResponseMessageReceiveQueue:dovetail/jms/OFCResponseMessageReceiveQueue" >> /opt/epp/gateway/mqm-init/IPE/queue/jmsqueuesForeignServer_IPE_to_PSH.txt
+                 echo "RFAResponseMessageReceiveQueue:dovetail/jms/RFAResponseMessageReceiveQueue" >> /opt/epp/gateway/mqm-init/IPE/queue/jmsqueuesForeignServer_IPE_to_PSH.txt
+                 echo "SWIFTMXOutQueue_US:dovetail/jms/SWIFTMXOutQueue_US" >> /opt/epp/gateway/mqm-init/IPE/queue/jmsqueuesForeignServer_IPE_to_PSH.txt
+                 echo "US_ISO20022BulkMessageReplyQueue:dovetail/jms/US_ISO20022BulkMessageReplyQueue" >> /opt/epp/gateway/mqm-init/IPE/queue/jmsqueuesForeignServer_IPE_to_PSH.txt
+                 echo "BnrArchiveMessageQueue:dovetail/jms/BnrArchiveMessageQueue" >> /opt/epp/gateway/mqm-init/IPE/queue/jmsqueuesForeignServer_IPE_to_PSH.txt
+                 
+                 cp -v /u01/oracle/shared/init-config/jmsqueuesForeignServer_PSH_to_IPE.txt /opt/epp/gateway/mqm-init/IPE/queue
+                 cp /u01/oracle/shared/init-config/jmstopics.txt /opt/epp/gateway/mqm-init/IPE/queue
+                 echo "" >> /opt/epp/gateway/mqm-init/IPE/queue/jmstopics.txt
+                 ls /opt/epp/gateway/mqm-init/IPE/queue
+                 echo "Finished psh-init container execution"
+                 echo "-------------------------------------"
+
+             volumeMounts:
+               - name: gatewaydir
+                 mountPath: "/opt/epp/gateway"
+                 subPath: {{.Values.nfsGatewaySubPath}}
+{{- end }}
+
+           - name: mqm-bindings
+             image: docker.artifactory.bank.onefiserv.net/epp/ibm-messaging/mq:latest
+             command:
+               - sh
+               - -c
+             args:
+               - |
+{{ .Files.Get "scripts/mqbindings.sh" | indent 18 }}
+                   #echo sleeping 60
+                   #sleep 60m
+             env:
+               - name: MQ_QMGR_NAME
+                 value: "PKSNSMQ"
+               - name: mq_hostname
+                 value: "{{.Values.name}}-mqm"
+               - name: IS_IPE_PSH
+                 value: "{{.Values.app.ipe}}"
+
+             volumeMounts:
+               - name: gatewaydir
+                 mountPath: "/opt/epp/gateway"
+                 subPath: {{.Values.nfsGatewaySubPath}}
+
+         volumes:
+
+               - name: gatewaydir
+                 nfs:
+                    server: {{.Values.nfsHost}}
+                    path: {{.Values.nfsPath}}
+
+               #mqm/qmgr-add.ini : configMap
+               - name: qmgr-addini
+                 configMap:
+                   name: {{.Values.name}}-qmgr-addini-cm
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{.Values.name}}-qmgr-addini-cm
+data:
+  qmgr-add.ini: |-
+    Channels:
+       MaxChannels=5000
+       MaxActiveChannels=5000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{.Values.name}}-mqm
+  namespace: {{.Values.namespace}}
+  labels:
+    app: {{.Values.name}}
+spec:
+  type: ClusterIP
+  ports:
+    - name: 1414-1414
+      port: 1414
+      protocol: TCP
+      targetPort: 1414
+  selector:
+    tier: {{.Values.name}}-mqm
+{{- end }}

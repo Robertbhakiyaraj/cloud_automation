@@ -1,0 +1,253 @@
+---
+# tasks file to install and configure autosys agent
+
+- block:
+  - name: Get hostname
+    shell: hostname -s
+    register: hostname_result
+
+  - name: Set hostname as variable
+    set_fact:
+      agent_hostname: "{{ hostname_result.stdout }}"      
+
+  - name: Set autosys_agent_software_name without .tar extension
+    set_fact:
+      autosys_agent_software_name_no_extension: "{{ autosys_agent_software_name | regex_replace('\\.tar$', '') }}"
+
+  - name: Install required packages
+    yum:
+      name: "{{ item }}"
+      state: present
+    loop:
+      - chkconfig
+
+  - name: Update all packages
+    yum:
+      name: "*"
+      state: latest
+
+
+  - name: Copy file using rsync
+    synchronize:
+      src: "{{ source_autosys_agent_location }}"
+      dest: /tmp
+
+  - name: Clean and extract the installation file
+    unarchive:
+      src: /tmp/{{autosys_agent_software_name}}
+      dest: /tmp
+      remote_src: yes
+
+  - name: Check if Autosys agent is already installed with hostname path
+    stat:
+      path: "/opt/CA/WorkloadAutomationAE/SystemAgent/{{ agent_hostname }}/cybAgent"
+    register: autosys_agent_hostname
+
+  - debug:
+      var: autosys_agent_hostname    
+  
+  - name: Check if Autosys agent is already installed with default path
+    stat:
+      path: "/opt/CA/WorkloadAutomationAE/SystemAgent/cybAgent"
+    register: autosys_agent
+
+  - debug:
+      var: autosys_agent  
+
+  - name: Check the Agent status if it's already installed and status is running or not
+    shell: "/etc/rc.d/init.d/wa_agent status"
+    register: agent_status_check
+    ignore_errors: yes      
+
+
+  - block: 
+    - name: Proceeding with the upgrade to R12 if agent is already installed with hostname path
+      debug: 
+         msg: "echo 'Proceeding with the upgrade to R12'"  
+        
+    - name: Proceed with the upgrade to R12 if agent is already installed with hostname path
+      shell: "/opt/CA/WorkloadAutomationAE/SystemAgent/{{agent_hostname}}/cybAgent -s"
+      register: agent_hostname_stop
+      ignore_errors: yes
+
+    - name: Agent is Already Stopped 
+      debug:
+        msg: "Agent service can not be stopped - The service has  been stopped already."
+      when: " 'Agent service can not be stopped - The service has not been started.' in agent_hostname_stop.stdout"
+
+    - name: Copy unix_upgrade.properties to create unix_upgrade.properties_hostname
+      shell: "cp -f /tmp/{{ autosys_agent_software_name_no_extension }}/unix_upgrade.properties /tmp/{{ autosys_agent_software_name_no_extension }}/unix_upgrade.properties_hostname"
+
+    - name: Append hostname to AGENT_UPGRADE_PATH in unix_upgrade.properties_hostname
+      shell: "sed -i 's#^AGENT_UPGRADE_PATH=.*#&/{{agent_hostname}}#' /tmp/{{ autosys_agent_software_name_no_extension }}/unix_upgrade.properties_hostname"
+
+    - name: Run upgrade script for R12 if agent is already installed with hostname path
+      shell: "/tmp/{{autosys_agent_software_name_no_extension}}/setup.bin -f /tmp/{{autosys_agent_software_name_no_extension}}/unix_upgrade.properties_hostname"
+      register: agent_setup_status
+      ignore_errors: yes
+
+    - debug:
+        var: agent_setup_status      
+
+    - name: Start the upgraded agent if agent is already installed with hostname path
+      shell: "/opt/CA/WorkloadAutomationAE/SystemAgent/{{agent_hostname}}/cybAgent -a"
+      register: agent_hostname_start
+
+    - name: Agent status
+      debug:
+        var: agent_hostname_start
+
+    - name: Get version after upgrade if agent is already installed with hostname path
+      shell:  "/opt/CA/WorkloadAutomationAE/SystemAgent/{{agent_hostname}}/cybAgent -v|grep Version"
+      register: cybAgent_version
+
+    - name: Display cybAgent_version
+      debug:
+        var: cybAgent_version   
+
+    - name: Status wa_agent
+      shell: "/etc/rc.d/init.d/wa_agent status"
+      register: wa_agent_status
+
+    - debug:
+        var: wa_agent_status        
+    when: autosys_agent_hostname.stat.exists  and agent_status_check.rc == 0
+
+
+  - block:  
+    - name: Proceeding with the upgrade to R12 if agent is already installed with default path
+      debug: 
+        msg: "echo 'Proceeding with the upgrade to R12'"  
+
+    - name: Proceed with the upgrade to R12 if agent is already installed with default path
+      shell: "/opt/CA/WorkloadAutomationAE/SystemAgent/cybAgent -s"
+      register: agent_default_stop
+      ignore_errors: yes
+
+    - name: Agent is Already Stopped 
+      debug:
+        msg: "Agent service can not be stopped - The service has  been stopped already."
+      when: " 'Agent service can not be stopped - The service has not been started.' in agent_default_stop.stdout"      
+
+    - name: Run upgrade script for R12 if agent is already installed with default path
+      shell: "/tmp/{{autosys_agent_software_name_no_extension}}/setup.bin -f /tmp/{{autosys_agent_software_name_no_extension}}/unix_upgrade.properties"
+      register: agent_setup_status
+      ignore_errors: yes
+
+    - debug:
+        var: agent_setup_status      
+
+    - name: Start the upgraded agent if agent is already installed with default path
+      shell: "/opt/CA/WorkloadAutomationAE/SystemAgent/cybAgent -a"
+      register: agent_default_start
+
+    - name: Agent status
+      debug:
+        var: agent_default_start      
+
+    - name: Get version after upgrade if agent is already installed with default path
+      shell: "/opt/CA/WorkloadAutomationAE/SystemAgent/cybAgent -v|grep Version"
+      register: cybAgent_version
+
+    - name: Display cybAgent_version
+      debug:
+        var: cybAgent_version   
+        
+    - name: Status wa_agent
+      shell: "/etc/rc.d/init.d/wa_agent status"
+      register: wa_agent_status
+
+    - debug:
+        var: wa_agent_status           
+
+    when: autosys_agent.stat.exists and agent_status_check.rc == 0
+
+  - block:
+    - name: Proceed with the Autosys Agent install
+      debug:
+        msg: "echo 'No Autosys agent detected on this host, proceeding with the Autosys Agent install.'"
+
+    - name: Set response file path
+      shell: "RESPONSE_FILE=/tmp/{{autosys_agent_software_name_no_extension}}/unix_installer.properties"
+
+    - name: Modify response file with hostname
+      shell: "sed s/HOSTNAME/{{agent_hostname}}/g /tmp/{{autosys_agent_software_name_no_extension}}/unix_installer.properties.template > /tmp/{{autosys_agent_software_name_no_extension}}/unix_installer.properties"
+
+    - name: Modify wa_agent file with hostname
+      shell: "sed s/HOSTNAME/{{agent_hostname}}/g /tmp/{{autosys_agent_software_name_no_extension}}/wa_agent.template > /tmp/{{autosys_agent_software_name_no_extension}}/wa_agent"   
+
+    - name: Update INSTALL_LOG
+      shell: "echo 'INSTALL_RUNNING' >> INSTALL_LOG.out && echo '' >> INSTALL_LOG.out && echo 'RESPONSE FILE:' >> INSTALL_LOG.out"
+
+    - name: Run setup.bin
+      shell: "/tmp/{{autosys_agent_software_name_no_extension}}/setup.bin -f /tmp/{{autosys_agent_software_name_no_extension}}/unix_installer.properties"
+      register: agent_setup_status
+      ignore_errors: yes
+
+    - debug:
+        var: agent_setup_status
+
+    - name: Update INSTALL_LOG with completion message
+      shell: "echo 'INSTALL COMPLETE' >> INSTALL_LOG.out && echo 'Additional Configuration for complete install and start the agent' >> INSTALL_LOG.out && echo 'Additional Configuration for complete install and start the agent.'"
+
+    - name: Create profiles directory
+      file:
+        path: /opt/CA/WorkloadAutomationAE/SystemAgent/profiles
+        state: directory
+        mode: '0755'
+        recurse: yes      
+
+    - name: Create hostname directory
+      file:
+        path: /opt/CA/WorkloadAutomationAE/SystemAgent/{{agent_hostname}}
+        state: directory
+        mode: '0755'
+        recurse: yes     
+
+    - name: Copy cryptkey.txt to hostname directory
+      shell: "cp -f /tmp/{{ autosys_agent_software_name_no_extension }}/cryptkey.txt /opt/CA/WorkloadAutomationAE/SystemAgent/{{ agent_hostname }}/cryptkey.txt"
+
+    - name: Copy WAAE.txt to profiles directory
+      shell: "cp -f /tmp/{{ autosys_agent_software_name_no_extension }}/WAAE.txt /opt/CA/WorkloadAutomationAE/SystemAgent/profiles/WAAE.txt"
+
+    - name: Change ownership of WAAE.txt
+      file:
+        path: "/opt/CA/WorkloadAutomationAE/SystemAgent/profiles/WAAE.txt"
+        owner: root
+        group: root
+
+    - name: Copy wa_agent to init.d directory
+      shell: "cp -f /tmp/{{ autosys_agent_software_name_no_extension }}/wa_agent /etc/rc.d/init.d/wa_agent"
+
+    - name: Set permissions for wa_agent
+      file:
+        path: "/etc/rc.d/init.d/wa_agent"
+        mode: '0744'
+
+    - name: Add wa_agent to system startup
+      shell: "chkconfig --add /etc/rc.d/init.d/wa_agent"
+
+    - name: Start wa_agent
+      shell: "/etc/rc.d/init.d/wa_agent start"
+      register: wa_agent_start
+
+    - debug:
+        var: wa_agent_start
+
+    - name: Status wa_agent
+      shell: "/etc/rc.d/init.d/wa_agent status"
+      register: wa_agent_status
+
+    - debug:
+        var: wa_agent_status
+
+    - name: Get version of the installed agent
+      shell: "/opt/CA/WorkloadAutomationAE/SystemAgent/{{agent_hostname}}/cybAgent -v|grep Version"
+      register: cybAgent_version
+
+    - debug:
+        var: cybAgent_version      
+    
+    when: not autosys_agent_hostname.stat.exists and not autosys_agent.stat.exists and agent_status_check.rc != 0
+
+  become: yes

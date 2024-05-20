@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<config>
+
+    
+	
+	
+	 <ims scope="messageKey" scope-value="DPS_ADV_CAMT054_V2">
+        <RootElement>com.dovetailsys.advisingiso.c24.model.dps_adv_camt054_v8.DocumentElement,com.dovetailsys.iso20022.tar.model.x00_001.DocumentElement</RootElement>
+        <Transform>com.dovetailsys.advisingiso.transform.DPS_ADV_CAMT054_V8_IdentityTransform</Transform>
+        <input>DPS_ADV_CAMT054_V8,TARPaymentV1</input>	
+    </ims>
+
+
+     
+    <ims scope="messageKey" scope-value="DPS_IF_ACC">
+        <RootElement>com.dovetailsys.accounting.c24.model.dps_if_acc_005.DocumentElement,com.dovetailsys.booking.model.v001.DocumentElement,com.dovetailsys.iso20022.tar.model.x00_001.DocumentElement</RootElement>
+        <Transform>com.dovetailsys.accounting.booking.transform.DPS_IF_ACC_V5_Booking_IdentityTransform</Transform>
+        <input>DPS_IF_ACC,BookingEntriesV1,TARPaymentV1</input>
+    </ims>
+
+   
+</config>

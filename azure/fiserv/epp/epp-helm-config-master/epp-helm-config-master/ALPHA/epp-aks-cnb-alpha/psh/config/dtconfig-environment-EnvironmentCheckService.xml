@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<config>
+    <EnvironmentCheckService>
+        <PropertyValuePair>Environment=Development</PropertyValuePair>
+        <PropertyValuePair>Host=localhost</PropertyValuePair>
+        <PropertyValuePair>TenantId=D02T023</PropertyValuePair>
+    </EnvironmentCheckService>
+</config>

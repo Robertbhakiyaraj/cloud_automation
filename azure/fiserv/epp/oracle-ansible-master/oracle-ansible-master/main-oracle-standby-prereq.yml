@@ -1,0 +1,7 @@
+---
+- name: Playbook to execute Role for Oracle Primary and Standby Servers
+  hosts: primary_server
+  vars_files:
+    - vars.yml  
+  roles:
+    - database-standby-steps-primary

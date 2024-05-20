@@ -1,0 +1,6 @@
+source_autosys_agent_location: "/home/mobaxterm/Documents/WA_SYSAGT_12.0_LINUX_64.tar"
+autosys_agent_software_name: "WA_SYSAGT_12.0_LINUX_64.tar"
+
+autosys_specs:
+  - { lv: "optcalv", size: "70g", path: '/opt/CA',  mode: '0755' }
+  - { lv: "appctmagentlv", size: "20g", path: '/app/ctmagent',  mode: '0755' }

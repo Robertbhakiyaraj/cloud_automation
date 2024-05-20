@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{.Values.name}}-ipe
+  namespace: {{.Values.namespace}}
+  labels:
+    app: {{.Values.name}}-ipe
+spec:
+  selector:
+    matchLabels:
+      app: {{.Values.name}}-ipe
+{{- if ( eq false .Values.ipe.deploy ) }}
+  replicas: 0 # disabled because.Values.gui.deploy: {{.Values.gui.deploy}} = false
+{{- end }}
+  progressDeadlineSeconds: 1500 # prevent timeouts in lower environments
+  template:
+    metadata:
+      labels:
+        app: {{.Values.name}}-ipe
+        tier: {{.Values.name}}-ipe
+      annotations:
+        # https://helm.sh/docs/howto/charts_tips_and_tricks/
+        rollme: {{ randAlphaNum 5 | quote }} # forces rolling restart from Harness pipelines
+    spec:
+      serviceAccountName: bank-aks-sa
+      imagePullSecrets:
+      - name: {{.Values.imagePullSecret}}
+      containers:
+      - name: psh
+        image: {{.Values.image}}
+        command:
+        - sh
+        - -c
+        - |
+          sed -i -r 's/^set -e\s*$//' /u01/oracle/container-scripts/createWLSDomain.sh
+          /u01/oracle/container-scripts/createWLSDomain.sh
+        imagePullPolicy: IfNotPresent
+        envFrom:
+        - configMapRef:
+            name: {{.Values.name}}-configmap
+        - secretRef:
+            name: {{.Values.name}}-secret
+        env:
+        - name: MY_POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: MY_POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: MANAGED_SERVER_URL
+          value: t3://$(MY_POD_IP):7001
+        - name: INSTANCE_CATEGORY
+          value: "IPE"
+        - name: CATEGORY_SHORT_NAME
+          value: "ipe"
+        - name: WL_DB_SESSION_TRACK
+          value: "true"
+        ports:
+        - containerPort: 7001
+        volumeMounts:
+        - name: gatewaydir
+          mountPath: /opt/epp/gateway
+          subPath: {{.Values.nfsGatewaySubPath}}
+        - name: category
+          mountPath: "/u01/oracle/shared/config/dtconfig-category-ipe-services.xml"
+          subPath: dtconfig-category-ipe-services.xml
+        {{- include "dynamic.mounts" . }}
+
+      volumes:
+      - name: gatewaydir
+        nfs:
+          server: {{.Values.nfsHost}}
+          path: {{.Values.nfsPath}}
+      - name: category
+        configMap:
+          name: {{.Values.name}}-dtconfig-category-ipe-servicesxml-cm
+      {{- include "dynamic.volumes" . }}
+

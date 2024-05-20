@@ -1,0 +1,121 @@
+---
+# tasks file for partitions-mount
+- name: Check if marker for successful extra partition exists in file
+  shell: "grep -i 'successful extra partition execution' /tmp/oracle_status.txt"
+  register: extra_partition_status
+  become: yes
+  ignore_errors: yes
+
+- block:
+    - name: Check if partitions exist
+      shell: "lsblk -n -o NAME | grep '{{ item.name | basename }}1$'"
+      loop: "{{ disks }}"
+      register: partition_check
+      changed_when: false
+      ignore_errors: yes
+    - debug:
+            var: partition_check  
+
+    - name: Create partitions
+      parted:
+        device: "{{ item.name }}"
+        label: gpt
+        state: present
+        part_start: 0%
+        part_end: 100%
+        name: primary
+        number: 1  
+      loop: "{{ disks }}"
+      when: partition_check is failed
+ 
+    - name: Check if volume groups exist
+      shell: "vgs --noheadings | awk '{ print $1 }' | grep 'vg_{{ item.mount_point | replace('/', '') }}$'"
+      loop: "{{ disks }}"
+      register: vg_check
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Create volume groups
+      lvg:
+        vg: "vg_{{ item.mount_point | replace('/', '') }}"
+        pvs: "{{ item.name }}1"
+      loop: "{{ disks }}"
+      when: vg_check is failed
+
+
+    - name: Check if physical volumes exist
+      shell: "pvs --noheadings | awk '{ print $1 }' | grep '{{ item.name}}1$'"
+      loop: "{{ disks }}"
+      register: pv_check
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Create physical volumes
+      lvg:
+        vg: "vg_{{ item.mount_point | replace('/', '') }}"
+        pvs: "{{ item.name }}1"
+      loop: "{{ disks }}"
+      when: pv_check is failed
+
+    - name: Check if logical volumes exist
+      shell: "lvs --noheadings | awk '{ print $1 }' | grep 'lv_{{ item.mount_point | replace('/', '') }}$'"
+      loop: "{{ disks }}"
+      register: lv_check
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Create logical volumes
+      lvol:
+        vg: "vg_{{ item.mount_point | replace('/', '') }}"
+        lv: "lv_{{ item.mount_point | replace('/', '') }}"
+        size: 100%FREE
+      loop: "{{ disks }}"
+      when: lv_check is failed
+
+    - name: Format logical volumes
+      filesystem:
+        fstype: xfs
+        dev: "/dev/vg_{{ item.mount_point | replace('/', '') }}/lv_{{ item.mount_point | replace('/', '') }}"
+      loop: "{{ disks }}"
+
+    - name: Add entries to /etc/fstab
+      lineinfile:
+        path: /etc/fstab
+        line: "/dev/mapper/vg_{{ item.mount_point | replace('/', '') }}-lv_{{ item.mount_point | replace('/', '') }}       {{ item.mount_point }}    xfs     defaults        0       0"
+      loop: "{{ disks }}"
+
+    - name: Reload systemd manager configuration
+      systemd:
+        daemon_reload: yes
+
+    - name: Create directories for mount points
+      file:
+        path: "{{ item.mount_point }}"
+        state: directory
+      loop: "{{ disks }}"
+
+    - name: Mount the volumes
+      mount:
+        path: "{{ item.mount_point }}"
+        src: "/dev/mapper/vg_{{ item.mount_point | replace('/', '') }}-lv_{{ item.mount_point | replace('/', '') }}"
+        fstype: xfs
+        state: mounted
+      loop: "{{ disks }}"
+
+    - name: Change the permission for extra disks
+      file:
+        path: "{{ item.mount_point }}"
+        state: directory
+        owner: oracle
+        group: oinstall
+        mode: '0775'
+      loop: "{{ disks }}"      
+
+    - name: Add marker to indicate successful of extra partition execution 
+      lineinfile:
+        path: /tmp/oracle_status.txt
+        line: "successful extra partition execution"
+        create: yes
+      
+  become: yes
+  when: extra_partition_status is changed and extra_partition_status.rc != 0

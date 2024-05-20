@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<config>
+
+   <job>
+        <IfAccNotificationJob scope="jobName" scope-value="Generate Accounting GL Notification File">
+            <fileNamePrefix>D010106.dps_acc_US_</fileNamePrefix>
+            <fileNameSuffix>.0_GL.IF4@bu1jc.eppmveit.xfrc</fileNameSuffix>
+        </IfAccNotificationJob>
+		
+        <IfAccNotificationJob scope="jobName" scope-value="Generate Accounting DDA Notification File">
+            <fileNamePrefix>D010106.dps_acc_US_</fileNamePrefix>
+            <fileNameSuffix>_DDA.IF4@bu1jc.eppmveit.xfrc</fileNameSuffix>
+        </IfAccNotificationJob>
+      
+    </job>
+	
+	
+
+
+   
+ 
+</config>

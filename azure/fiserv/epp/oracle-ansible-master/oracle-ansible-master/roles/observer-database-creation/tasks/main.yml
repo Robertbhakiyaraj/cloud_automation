@@ -1,0 +1,93 @@
+# tasks file for database-creation
+- name: Check if marker for successful dbcreation_status exists in file
+  shell: "grep -i 'successful dbcreation execution' /tmp/oracle_status.txt"
+  register: dbcreation_status
+  become: yes
+  ignore_errors: yes
+
+- block:
+
+  - name: Source .bash_profile
+    shell: "source ~/.bash_profile && echo 'Success: .bash_profile sourced'"
+    register: bash_profile_result
+    changed_when: false
+    become_user: oracle
+
+  - name: Check if marker for successful netca exists in file
+    shell: "grep -i 'successful netca execution' /tmp/oracle_status.txt"
+    register: netca_status
+    ignore_errors: yes
+
+  - name: Run netca
+    shell: "{{ oracle_home }}/bin/netca -silent -responsefile {{ oracle_home }}/assistants/netca/netca.rsp"
+    become_user: oracle
+    register: netca_results
+    when: netca_status is changed and netca_status.rc != 0
+
+  - debug:
+        var: netca_results
+    when: netca_results is changed and netca_results.rc == 0
+
+  - name: Add marker to indicate successful of netca execution 
+    lineinfile:
+      path: /tmp/oracle_status.txt
+      line: "successful netca execution"
+      create: yes
+    when: netca_results is changed and netca_results.rc == 0
+
+  - name: Check if marker for successful dbca exists in file
+    shell: "grep -i 'successful dbca execution' /tmp/oracle_status.txt"
+    register: dbca_status
+    ignore_errors: yes
+
+  - name: Run dbca command to create Oracle database
+    shell: |
+        {{ oracle_home }}/bin/dbca -silent -createDatabase \
+        -gdbName {{ oracle_sid }} \
+        -sid {{ oracle_sid }} \
+        -responseFile NO_VALUE \
+        -databaseConfigType SI \
+        -createAsContainerDatabase true \
+        -numberOfPDBs 1 \
+        -pdbName PDB1 \
+        -pdbAdminPassword E4CQmk3ps65N8xBc \
+        -databaseType MULTIPURPOSE \
+        -templateName General_Purpose.dbc \
+        -sysPassword gyoFm8AYHsvZm48A \
+        -systemPassword gyoFm8AYHsvZm48A \
+        -storageType FS \
+        -datafileDestination {{ oracle_base }}/oradata/{{ oracle_sid }} \
+        -redoLogFileSize 50 \
+        -useOMF true \
+        -totalMemory 4096 \
+        -characterSet {{ oraclecharset }} \
+        -sampleSchema false \
+        -enableArchive true \
+        -recoveryAreaDestination {{ oracle_base }}/redo/{{ oracle_sid }} \
+        -nationalCharacterSet {{ oraclenls_charset }} \
+        -initParams sga_target=1536MB,pga_aggregate_target=512MB,nls_language=ENGLISH,nls_territory='AMERICA',processes=300,open_cursors=300,log_archive_format=%t_%s_%r.dbf,audit_trail=db \
+        -automaticMemoryManagement false
+    become_user: oracle
+    register: dbca_results
+    when: dbca_status is changed and dbca_status.rc != 0
+
+  - name: Print dbca results
+    debug:
+      var: dbca_results
+    when: dbca_results is changed and dbca_results.rc == 0
+
+  - name: Add marker to indicate successful of dbca execution 
+    lineinfile:
+      path: /tmp/oracle_status.txt
+      line: "successful dbca execution"
+      create: yes
+    when: dbca_results is changed and dbca_results.rc == 0
+
+  - name: Add marker to indicate successful of dbcreation execution 
+    lineinfile:
+      path: /tmp/oracle_status.txt
+      line: "successful dbcreation execution"
+      create: yes 
+
+  become: yes
+  when: dbcreation_status is changed and dbcreation_status.rc != 0

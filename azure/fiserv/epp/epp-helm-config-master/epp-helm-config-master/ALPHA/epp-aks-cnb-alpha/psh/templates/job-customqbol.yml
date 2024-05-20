@@ -1,0 +1,93 @@
+{{- if eq true .Values.customQbol.runjob }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{.Values.name}}-customqbol{{randAlphaNum 3 | lower}} # create a new job every time the pipeline is executed
+  namespace: {{.Values.namespace}}
+  labels:
+    app: {{.Values.name}}-customqbol
+spec:
+  ttlSecondsAfterFinished: 1500 # delete job after it finishes
+  template:
+    spec:
+      serviceAccountName: bank-aks-sa
+      imagePullSecrets:
+       - name: {{.Values.imagePullSecret}}
+      restartPolicy: Never
+      containers:
+      - name: psh
+        image: {{.Values.image}}
+        command:
+        - sh
+        - -c
+        - |
+{{ .Files.Get "scripts/setupenvironment.sh" | indent 10 }}
+{{ .Files.Get "scripts/customqbol.sh" | indent 10 }}
+          echo "Sleeping for 30 minutes to allow allow access to the environment if necessary..."
+          sleep 30m
+          echo "Job finished"
+
+        imagePullPolicy: IfNotPresent
+
+        envFrom:
+        - configMapRef:
+            name: {{.Values.name}}-configmap
+        - secretRef:
+            name: {{.Values.name}}-secret
+        env:
+        - name: MY_POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: MY_POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        ports:
+        - containerPort: 7001
+        volumeMounts:
+        - name: gatewaydir
+          mountPath: /opt/epp/gateway
+          subPath: {{.Values.nfsGatewaySubPath}}
+        - name: customqbol
+          mountPath: "/u01/oracle/shared/init-config/qbol/customqbol.xml"
+          subPath: customqbol.xml
+        {{- include "dynamic.mounts" . }}
+
+      volumes:
+      - name: gatewaydir
+        nfs:
+          server: {{.Values.nfsHost}}
+          path: {{.Values.nfsPath}}
+      - name: customqbol
+        configMap:
+          name: {{.Values.name}}-customqbol-configmap
+      {{- include "dynamic.volumes" . }}
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{.Values.name}}-customqbol-configmap
+  labels:
+    app: {{.Values.name}}
+data:
+  customqbol.xml: |-
+    <!DOCTYPE qbol:Script SYSTEM "qbol">
+    <qbol:Script xmlns:qbol='http://www.dovetailsys.com/qbol' xmlns:q5='http://www.dovetailsys.com/q5'>
+    
+    <!--  This is needed to allow regression tests to run properly since they rely on these notifications -->
+    
+    <qbol:Update Class='DPPSystemProperty' AddMissing='false'>
+    <qbol:ByQuery>Name = 'DPP.USx'</qbol:ByQuery>
+    <q5:Object Class='DPPSystemProperty'>
+    <q5:Property>
+    <q5:Name>AccountingNotifications</q5:Name>
+    <q5:Value>A</q5:Value>
+    </q5:Property>
+    </q5:Object>
+    </qbol:Update>
+    
+    </qbol:Script>
+
+{{- end }}

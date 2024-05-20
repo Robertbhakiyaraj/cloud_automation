@@ -1,0 +1,31 @@
+---
+# tasks file for reboot
+- name: Check if marker for successful reboot
+  shell: "grep -i 'successful reboot after file system mount' /tmp/fs_status.txt"
+  register: reboot_check
+  become: yes
+  ignore_errors: yes
+
+- block:
+    - name: Reboot the system
+      shell: sleep 5 && init 6
+      async: 1
+      poll: 0
+
+    - name: Wait for SSH to become available
+      wait_for_connection:
+        delay: 60
+        timeout: 300
+
+    - name: Ping hosts after reboot
+      ping:
+    
+    - name: Add marker to indicate successful reboot
+      lineinfile:
+        path: /tmp/fs_status.txt
+        line: "successful reboot after file system mount"
+        create: yes
+
+  become: yes
+  when: reboot_check is changed and reboot_check.rc != 0
+

@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<config>
+
+ <DebitCreditNotificationAdvisingMapper>
+        <com.dovetailsys.advisingiso.Mapper>com.dovetailsys.advisingiso.mapper.ISO20022BankToCustomerDebitCreditNotificationMapperV08</com.dovetailsys.advisingiso.Mapper>
+    </DebitCreditNotificationAdvisingMapper>
+
+    
+	
+	
+    <stage>
+        <InstructionStatusAdvisingStage>
+            <InstructionStatusAdviceMapper>
+                ${mapper/ISOInstructionStatusAdvising}
+            </InstructionStatusAdviceMapper>
+        </InstructionStatusAdvisingStage>
+         <InstructionStatusAdvisingFinalStatus>
+            <InstructionStatusAdviceMapper>
+                ${mapper/ISOInstructionStatusAdvising}
+            </InstructionStatusAdviceMapper>
+        </InstructionStatusAdvisingFinalStatus>
+         <InstructionStatusOriginationAdvising>
+            <InstructionStatusAdviceMapper>
+                ${mapper/ISOInstructionStatusAdvising}
+            </InstructionStatusAdviceMapper>
+        </InstructionStatusOriginationAdvising>
+		 <GenerateAdvisingChunkAbstract>
+            <DebitCreditNotificationAdvisingStage scope="stageName" scope-value="BookDebitCreditNotificationAdvising">
+                <com.dovetailsys.imf.RequestMessageTranslator>com.dovetailsys.ims.IMSRequestMessageTranslator</com.dovetailsys.imf.RequestMessageTranslator>
+                <com.dovetailsys.advisingiso.Mapper>${DebitCreditNotificationAdvisingMapper/com.dovetailsys.advisingiso.Mapper}</com.dovetailsys.advisingiso.Mapper>
+                <AdvisingStatus>BOOK</AdvisingStatus>
+                <AddtlTxInf>SourceSubType:Source_Sub_Type;PaySubType:Pay_Sub_Type</AddtlTxInf>
+            </DebitCreditNotificationAdvisingStage>
+           
+            <DebitCreditNotificationAdvisingStage scope="stageName" scope-value="PendingDebitCreditNotificationAdvising">
+                <com.dovetailsys.imf.RequestMessageTranslator>com.dovetailsys.ims.IMSRequestMessageTranslator</com.dovetailsys.imf.RequestMessageTranslator>
+                <com.dovetailsys.advisingiso.Mapper>${DebitCreditNotificationAdvisingMapper/com.dovetailsys.advisingiso.Mapper}</com.dovetailsys.advisingiso.Mapper>
+                <AdvisingStatus>PDNG</AdvisingStatus>
+                <AddtlTxInf>SourceSubType:Source_Sub_Type;PaySubType:Pay_Sub_Type</AddtlTxInf>
+            </DebitCreditNotificationAdvisingStage>
+        </GenerateAdvisingChunkAbstract>
+		
+		
+    </stage>
+     <gateway>
+        <AdvisingGatewayService>
+            <InstructionStatusAdviceMapper>
+                ${mapper/ISOInstructionStatusAdvising}
+            </InstructionStatusAdviceMapper>
+        </AdvisingGatewayService>
+		
+		  <AdvisingGatewayService>
+            <com.dovetailsys.advisingiso.Mapper>${DebitCreditNotificationAdvisingMapper/com.dovetailsys.advisingiso.Mapper}</com.dovetailsys.advisingiso.Mapper>
+        </AdvisingGatewayService>
+		
+		
+    </gateway>
+</config>

@@ -1,0 +1,129 @@
+---
+# tasks file for partitioning_mounting_osdisk
+- name: Check if marker for successful osdisk partition exists in file
+  shell: "grep -i 'successful osdisk partition execution' /tmp/oracle_status.txt"
+  register: osdisk_partition_status
+  become: yes
+  ignore_errors: yes
+
+- block:
+
+    - name: Check if logical volumes exist
+      shell: "lvs --noheadings | awk '{ print $1 }' | grep 'swaplv'"
+      register: lv_check_swap
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Create logical volume for swap
+      lvol:
+        vg: vg_extra
+        lv: swaplv
+        size: "{{swap_space}}G"
+      register: lvcreate_swap_output
+      when: lv_check_swap is failed
+
+    - name: Check if swap partition exists
+      stat:
+        path: /dev/vg_extra/swaplv
+      register: swap_partition_status
+
+    - name: Format swap partition
+      shell: mkswap /dev/vg_extra/swaplv
+      register: mkswap_output
+      ignore_errors: yes
+
+    - name: Format swap partition is already completed
+      debug:
+        msg: "Format swap partition is already completed"
+      when: mkswap_output.rc != 0 and "is mounted" in mkswap_output.stderr
+  
+
+    - name: Add swap entry to /etc/fstab
+      lineinfile:
+        path: /etc/fstab
+        line: "/dev/mapper/vg_extra-swaplv  swap     swap    defaults     0 0"
+
+    - name: Check if swap is already activated
+      stat:
+        path: /dev/vg_extra/swaplv
+      register: swap_status
+
+    - name: Activate swap if it doesn't exist
+      shell: swapon -v /dev/vg_extra/swaplv
+      register: swapon_output
+      ignore_errors: yes
+
+    - name: Activate swap is already completed
+      debug:
+        msg: "Activate swap is already completed"
+      when: swapon_output.rc != 0 and "Device or resource busy" in swapon_output.stderr      
+
+    - name: Enable swap at boot
+      shell: swapon -a
+
+    - name: Display current swap usage
+      shell: cat /proc/swaps
+
+    - name: Check if logical volumes exist for opt
+      shell: "lvs --noheadings | awk '{ print $1 }' | grep 'optoraclelv'"
+      register: lv_check_optlv
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Create logical volume for /opt/oracle
+      lvol:
+        vg: vg_extra
+        lv: optoraclelv
+        size: "{{optoracle_space}}G"
+      register: lvcreate_opt_output
+      when: lv_check_optlv is failed
+
+    - name: Check if /opt/oracle partition exists
+      shell: lsblk -no NAME | grep vg_extra-optoraclelv
+      register: opt_oracle_partition_check
+      ignore_errors: yes
+
+    - name: Format logical volumes
+      filesystem:
+        fstype: xfs
+        dev: "/dev/vg_extra/optoraclelv"
+
+    - name: Add /opt entry to /etc/fstab
+      lineinfile:
+        path: /etc/fstab
+        line: "/dev/mapper/vg_extra-optoraclelv       /opt/oracle    xfs     defaults        0       0"
+
+    - name: Check if /opt/oracle directory exists
+      stat:
+        path: /opt/oracle
+      register: oracle_dir_status
+
+    - name: Create /opt/oracle directory if it doesn't exist
+      shell: mkdir -p /opt/oracle
+      when: not oracle_dir_status.stat.exists
+
+    - name: Reload systemd
+      systemd:
+        daemon_reload: yes
+
+    - name: Check if /opt/oracle is already mounted
+      shell: "mount | grep '/opt/oracle'"
+      register: mount_status_opt
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Mount /opt/oracle volume
+      mount:
+        src: "/dev/mapper/vg_extra-optoraclelv"
+        path: "/opt/oracle"
+        fstype: xfs
+        state: mounted
+        
+    - name: Add marker to indicate successful of osdisk partition execution 
+      lineinfile:
+         path: /tmp/oracle_status.txt
+         line: "successful osdisk partition execution"
+         create: yes      
+
+  become: yes    
+  when: osdisk_partition_status is changed and osdisk_partition_status.rc != 0

@@ -1,0 +1,111 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{.Values.name}}-gtwsim
+  namespace: {{.Values.namespace}}
+  labels:
+    app: {{.Values.name}}
+spec:
+  selector:
+    matchLabels:
+      app: {{.Values.name}}
+      tier: {{.Values.name}}-gtwsim
+{{- if or ( eq false .Values.gtwsim.deploy ) ( eq true .Values.initDb.runjob ) }}
+  replicas: 0 # disabled because.Values.gtwsim.deploy: {{.Values.gtwsim.deploy}} = false or .Values.initDb.runjob: {{.Values.initDb.runjob}} = true
+{{- end }}
+  progressDeadlineSeconds: 1500 # prevent timeouts in lower environments
+  template:
+    metadata:
+      labels:
+        app: {{.Values.name}}
+        tier: {{.Values.name}}-gtwsim
+      annotations:
+        # https://helm.sh/docs/howto/charts_tips_and_tricks/
+        rollme: {{ randAlphaNum 5 | quote }} # forces rolling restart from Harness pipelines
+    spec:
+      serviceAccountName: bank-sa
+      imagePullSecrets:
+      - name: {{.Values.imagePullSecret}}
+      containers:
+      - name: psh
+        image: {{.Values.image}}
+#        command:
+#        - sh
+#        - -c
+#        args:
+#        - while true; do echo -en '\n'; ls /u01/oracle/shared/config -lht ; sleep 1; ls /var/epp-domain-dir/* -lht ; done;
+        imagePullPolicy: IfNotPresent
+        #Probes
+        livenessProbe:
+          exec:
+            command:
+              - /bin/bash
+              - -c
+              - |
+                MANAGED_SERVER_NAME=$CATEGORY_SHORT_NAME-$( echo $HOSTNAME | grep -oP "(?<=-)[^-]+$" | tr -d '\n'  )
+                RESULT=$(curl -s "localhost:7001/JMXWebApp/JMXUtilHandler?internalCommand=singleList&domainName=DovetailSystems&host=$MANAGED_SERVER_NAME&listType=Service")
+                for service in $SERVICES_HEALTH_CHECK
+                do
+                  echo $RESULT | grep -oP  "$service.*?</tr>" | grep -oP "(Online|Offline|Failure)" | grep -vq "Failure" && echo "Liveness probe passed for $service" > /proc/1/fd/1
+                done
+          failureThreshold: 4
+          periodSeconds: 60
+          timeoutSeconds: 40
+        startupProbe:
+          httpGet:
+            path: /JMXWebApp
+            port: 7001
+          initialDelaySeconds: 180
+          failureThreshold: 40
+          periodSeconds: 15
+
+        envFrom:
+        - configMapRef:
+            name: {{.Values.name}}-configmap
+        - secretRef:
+            name: {{.Values.name}}-secret
+        env:
+        - name: MY_POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: MY_POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: MANAGED_SERVER_URL
+          value: t3://$(MY_POD_IP):7001
+        - name: INSTANCE_CATEGORY
+          value: "GATEWAY_SIMS"
+        - name: CATEGORY_SHORT_NAME
+          value: "gtwsim"
+        - name: XMS_VALUE
+          value: "2g"
+        - name: XMX_VALUE
+          value: "3g"
+        - name: WL_DB_SESSION_TRACK
+          value: "true"
+        - name: SERVICES_HEALTH_CHECK
+          value: "FedGateway SWIFTGateway_US" # service name must be an exact match. Separate multiple names with spaces
+        - name: JTA_TIMEOUT_SECONDS
+          value: "900"
+        ports:
+        - containerPort: 7001
+        volumeMounts:
+        - name: gatewaydir
+          mountPath: /opt/epp/gateway
+          subPath: {{.Values.nfsGatewaySubPath}}
+        - name: category
+          mountPath: "/u01/oracle/shared/config/dtconfig-category-gtwsim-services.xml"
+          subPath: dtconfig-category-gtwsim-services.xml
+        {{- include "dynamic.mounts" . }}
+
+      volumes:
+      - name: gatewaydir
+        nfs:
+          server: {{.Values.nfsHost}}
+          path: {{.Values.nfsPath}}
+      - name: category
+        configMap:
+          name: {{.Values.name}}-dtconfig-category-gtwsim-servicesxml-cm
+      {{- include "dynamic.volumes" . }}

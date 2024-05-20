@@ -1,0 +1,29 @@
+{{primary_db_name}} =
+  (DESCRIPTION =
+    (ADDRESS = (PROTOCOL = TCP)(HOST = {{ primary_db_ip }} )(PORT = 1521))
+    (CONNECT_DATA =
+      (SERVER = DEDICATED)
+      (SERVICE_NAME = {{primary_db_name}})
+    )
+  )
+
+{{standby_db_name}} =
+  (DESCRIPTION =
+    (ADDRESS = (PROTOCOL = TCP)(HOST = {{ standby_db_ip }} )(PORT = 1521))
+    (CONNECT_DATA =
+      (SERVER = DEDICATED)
+      (SERVICE_NAME = {{standby_db_name}})
+    )
+  )
+
+{{dg_failover_tnsname}} =
+  (DESCRIPTION =
+  (FAILOVER=ON) (LOAD_BALANCE=OFF)
+    (ADDRESS_LIST =
+    (ADDRESS = (PROTOCOL = TCP)(HOST = {{ primary_db_ip }})(PORT = 1521))
+    (ADDRESS = (PROTOCOL = TCP)(HOST = {{ standby_db_ip }})(PORT = 1521)))
+    (CONNECT_DATA =
+      (SERVER = DEDICATED)
+      (SERVICE_NAME = {{dg_failover_service}})
+    )
+  )
