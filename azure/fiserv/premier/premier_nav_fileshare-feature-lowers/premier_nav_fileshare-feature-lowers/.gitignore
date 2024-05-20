@@ -1,7 +1,0 @@
-.terraform.lock.hcl
-.terraform/
-cli_env.sh
-.DS_Store
-modules/.DS_Store
-modules/compute/.DS_Store
-modules/compute/win_wrapper/.DS_Store

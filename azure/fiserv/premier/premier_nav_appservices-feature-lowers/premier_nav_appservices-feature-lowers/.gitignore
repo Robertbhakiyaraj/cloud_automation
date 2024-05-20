@@ -1,4 +1,0 @@
-.terraform.lock.hcl
-.terraform/
-cli_env.sh
-.DS_Store
