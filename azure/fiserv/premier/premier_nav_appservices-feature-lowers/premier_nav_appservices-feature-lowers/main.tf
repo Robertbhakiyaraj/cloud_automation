@@ -57,7 +57,10 @@ module premier_webappservice {
   eventhub_metrics_name = var.eventhub_metrics_name
 resources_location = var.resources_location
 vnet_resourcegroup_name = var.vnet_resourcegroup_name
-http_log_retention_size = var.http_log_retention_size
-
+http_log_retention_size = "" #var.http_log_retention_size
+shared_storage_account = ""
+storage_resource_group = ""
+appservice_log_level = ""
+appservice_name = ""
 
 }

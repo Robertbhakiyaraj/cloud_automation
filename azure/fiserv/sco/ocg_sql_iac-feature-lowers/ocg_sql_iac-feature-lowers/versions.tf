@@ -25,7 +25,7 @@ provider "azurerm" {
   alias           = "sa_privateDNS"
   client_id       = var.client_id_privateDNS
   client_secret   = var.client_secret_privateDNS
-  subscription_id = var.subscription_id_privateDNS
+  subscription_id = "" #var.subscription_id_privateDNS
   features {}
 }
 
