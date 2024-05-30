@@ -1,5 +1,5 @@
 #vnet,subnet,keyvault,rg & location Details
-vnet_name                                            = ""
+vnet_name                                            = "" 
 vnet_rg                                              = ""
 subnet_name                                          = ""
 vm_rg                                                = ""
