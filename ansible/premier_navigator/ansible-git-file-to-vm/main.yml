@@ -1,0 +1,43 @@
+# tasks file for copy-github-vm
+---
+- name: Clone GitHub repository
+  hosts: all
+  gather_facts: no
+  connection: winrm
+
+  vars_files:
+    - vars.yml
+
+ # become: yes
+ # become_method: runas
+ # become_user: Administrator  # Change this to the appropriate user account
+
+
+  tasks:
+    - name: Check if destination folder exists
+      raw: |
+        if (-not (Test-Path {{ destination_folder }})) {
+          Write-Output "Destination folder does not exist"
+          #exit 1
+        } else {
+          Write-Output "Destination folder exists"
+        }
+      register: check_folder_output
+
+    - debug:
+        var: check_folder_output.stdout_lines
+
+    - name: Clone or pull Git repository
+      raw: |
+        cd {{ destination_folder }}
+        if (-not (Test-Path .git)) {
+          Write-Output "Cloning Git repository"
+          git clone -b {{ git_branch }} {{ git_repo }} {{ destination_folder }}
+        } else {
+          Write-Output "Pulling Git repository"
+          git pull
+        }
+      register: check_folder_output
+
+    - debug:
+        var: check_folder_output.stdout_lines

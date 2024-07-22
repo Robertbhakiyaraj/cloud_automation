@@ -1,0 +1,30 @@
+---
+- name: Clone Git repository locally and copy to Windows server
+  hosts: localhost
+  gather_facts: no
+
+  vars_files:
+    - vars.yml
+
+  tasks:
+    - name: Clone git repository to local machine
+      git:
+        repo: "{{ git_repo }}"
+        dest: "{{ temp_repo }}"
+        version: main  # Or specify the branch/tag you want to clone
+
+- name: Copy cloned repository to Windows server
+  hosts: windows_hosts
+  gather_facts: no
+  connection: winrm
+
+  vars_files:
+    - vars.yml
+
+  tasks:
+    - name: Copy cloned repository to Windows server
+      win_copy:
+        src: "{{ temp_repo }}"
+        dest: "{{ destination_folder }}"  # Update with the destination path on the Windows server
+        ansible_winrm_transport: ntlm  # Specify the WinRM transport
+        ansible_winrm_server_cert_validation: ignore  # Ignore SSL certificate validation (if necessary)

@@ -1,0 +1,6 @@
+# Defining Variables for Shared github repo and Target folder
+---
+ git_repo: "https://github.com/AjayDevops9090/terraform_modules.git"
+ git_branch: "main"
+ temp_repo: "/tmp/get_repos/"
+ destination_folder: "C:\\SQL\\ITI"
